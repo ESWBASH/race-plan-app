@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>ClaudeCoach | AI Ultra Running Coach · Strava Sync · Race Plans</title>
+    <meta name="description" content="Your AI-powered ultra running coach. Personalised race plans, training load analysis, and live Strava sync — built for trail and fell runners chasing their next finish line." />
+    <meta name="theme-color" content="#0b0d14" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="ClaudeCoach — AI Ultra Running Coach" />
+    <meta property="og:description" content="Personalised race plans, Strava sync, and an AI coach that knows your races, your niggles, and your why. Free to use." />
+    <meta property="og:url" content="https://race-plan-app.vercel.app" />
+    <meta property="og:image" content="https://race-plan-app.vercel.app/og-image.png" />
+    <meta property="og:site_name" content="ClaudeCoach" />
+
+    <!-- Twitter / X card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="ClaudeCoach — AI Ultra Running Coach" />
+    <meta name="twitter:description" content="Personalised race plans, Strava sync, and a coach that knows your races. Free." />
+    <meta name="twitter:image" content="https://race-plan-app.vercel.app/og-image.png" />
+
+    <!-- PWA / Add to Home Screen -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ClaudeCoach" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230b0d14'/><text y='.9em' font-size='90'>⚡</text></svg>" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Structured data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "ClaudeCoach",
+      "applicationCategory": "SportsApplication",
+      "operatingSystem": "Web, iOS, Android",
+      "description": "AI-powered ultra running coach with Strava sync, personalised race plans, and training load analysis.",
+      "url": "https://race-plan-app.vercel.app",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "GBP"
+      },
+      "featureList": [
+        "Strava sync",
+        "AI race plans",
+        "Weekly check-ins",
+        "Training calendar",
+        "Race intelligence"
+      ]
+    }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
