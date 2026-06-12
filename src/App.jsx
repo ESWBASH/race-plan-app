@@ -598,7 +598,71 @@ function CheckInWidget({ onCheckinDone, onCheckinSave }) {
 // AI COACH CHAT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function ChatSection({ activities, athlete, hevyWorkouts = [], pendingCheckin, onPendingCheckinConsumed }) {
+function HevyWorkoutButton({ workout, apiKey }) {
+  const [state, setState] = useState('idle') // idle | loading | done | error
+  const [errMsg, setErrMsg] = useState('')
+
+  async function sendToHevy() {
+    setState('loading')
+    try {
+      const res = await fetch('/api/hevy-create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey, title: workout.title, exercises: workout.exercises }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setErrMsg(data.error || 'Error'); setState('error'); return }
+      setState('done')
+    } catch (err) {
+      setErrMsg(err.message); setState('error')
+    }
+  }
+
+  if (state === 'done') return (
+    <div className="hevy-btn-row">
+      <span className="hevy-btn-done">✓ Added to Hevy — open the app to start</span>
+    </div>
+  )
+  if (state === 'error') return (
+    <div className="hevy-btn-row">
+      <span style={{ fontSize: 11, color: 'var(--red)' }}>Hevy error: {errMsg}</span>
+    </div>
+  )
+
+  return (
+    <div className="hevy-btn-row">
+      <button className="hevy-send-btn" onClick={sendToHevy} disabled={state === 'loading'}>
+        {state === 'loading' ? '…' : '🏋️ Add to Hevy'}
+      </button>
+      <div className="hevy-workout-preview">
+        {workout.exercises.map((e, i) => (
+          <span key={i} className="hevy-ex-pill">{e.name} {e.sets}×{e.reps}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function parseHevyWorkout(text) {
+  const match = text.match(/HEVY_WORKOUT_START\s*([\s\S]*?)\s*HEVY_WORKOUT_END/)
+  if (!match) return null
+  const block = match[1]
+  const titleMatch = block.match(/^title:\s*(.+)/m)
+  const title = titleMatch ? titleMatch[1].trim() : 'Coach S&C Session'
+  const exerciseLines = [...block.matchAll(/^- name:\s*([^|]+)\s*\|\s*sets:\s*(\d+)\s*\|\s*reps:\s*(\d+)/gm)]
+  const exercises = exerciseLines.map(m => ({
+    name: m[1].trim(),
+    sets: parseInt(m[2]),
+    reps: parseInt(m[3]),
+  }))
+  return exercises.length ? { title, exercises } : null
+}
+
+function stripHevyBlock(text) {
+  return text.replace(/\n*HEVY_WORKOUT_START[\s\S]*?HEVY_WORKOUT_END\n*/g, '').trim()
+}
+
+function ChatSection({ activities, athlete, hevyWorkouts = [], hevyKey = '', pendingCheckin, onPendingCheckinConsumed }) {
   const [messages, setMessages] = useState(getChats)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -799,12 +863,21 @@ function ChatSection({ activities, athlete, hevyWorkouts = [], pendingCheckin, o
           </div>
         )}
 
-        {messages.map((m, i) => (
-          <div key={i} className={`chat-msg ${m.role}`}>
-            {m.role === 'assistant' && <div className="chat-avatar">⚡</div>}
-            <div className="chat-bubble">{m.content}</div>
-          </div>
-        ))}
+        {messages.map((m, i) => {
+          const workout = m.role === 'assistant' ? parseHevyWorkout(m.content) : null
+          const displayText = workout ? stripHevyBlock(m.content) : m.content
+          return (
+            <div key={i} className={`chat-msg ${m.role}`}>
+              {m.role === 'assistant' && <div className="chat-avatar">⚡</div>}
+              <div style={{ flex: 1 }}>
+                <div className="chat-bubble">{displayText}</div>
+                {workout && hevyKey && (
+                  <HevyWorkoutButton workout={workout} apiKey={hevyKey} />
+                )}
+              </div>
+            </div>
+          )
+        })}
 
         {loading && (
           <div className="chat-msg assistant">
@@ -3361,7 +3434,7 @@ export default function App() {
         {tab === 'journal'  && <JournalSection />}
         {tab === 'training' && <TrainingSection activities={strava.activities} hevyWorkouts={hevyWorkouts} hevyKey={hevyKey} setHevyKey={setHevyKey} hevyLoading={hevyLoading} />}
         {tab === 'fuel'     && <FuelSection />}
-        {tab === 'coach'    && <ChatSection activities={strava.activities} athlete={strava.athlete} hevyWorkouts={hevyWorkouts} pendingCheckin={pendingCheckin} onPendingCheckinConsumed={() => setPendingCheckin(null)} />}
+        {tab === 'coach'    && <ChatSection activities={strava.activities} athlete={strava.athlete} hevyWorkouts={hevyWorkouts} hevyKey={hevyKey} pendingCheckin={pendingCheckin} onPendingCheckinConsumed={() => setPendingCheckin(null)} />}
       </main>
 
       <nav className="bottom-nav">

@@ -111,7 +111,17 @@ COACHING RULES:
 - Be honest. A good coach calls things out. Don't just validate.
 - If they ask "should I run today?" — give a real yes/no with reasoning based on their data
 - DATA QUALITY RULE: If recent training data is sparse (fewer than 3 runs in 14 days), or check-in data is missing, flag this FIRST before drawing conclusions. Say something like "I'm working from limited data this week — based on what I can see..." before advising. Never project confidence from thin data.
-- PATTERN RULE: If an activity count or mileage is unusually high or low compared to normal, note it explicitly ("you've only logged 1 run in the last 7 days — is that right?") before advising around it. Don't silently assume the data is complete.`
+- PATTERN RULE: If an activity count or mileage is unusually high or low compared to normal, note it explicitly ("you've only logged 1 run in the last 7 days — is that right?") before advising around it. Don't silently assume the data is complete.
+- HEVY WORKOUT RULE: When you suggest a specific S&C session (actual exercises, not just general advice), append this block at the very end — exact format, no deviations:
+
+HEVY_WORKOUT_START
+title: <session title e.g. "Pre-race S&C">
+exercises:
+- name: Romanian Deadlift | sets: 3 | reps: 8
+- name: Hip Thrust | sets: 3 | reps: 12
+HEVY_WORKOUT_END
+
+Use exact Hevy exercise names: Romanian Deadlift, Hip Thrust, Bulgarian Split Squat, Glute Bridge, Nordic Hamstring Curl, Box Jump, Single Leg Deadlift, Calf Raise, Plank, Dead Bug, Copenhagen Plank, Lateral Band Walk, Step Up, Farmer's Carry. Only include the block when suggesting a specific session to do.`
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
