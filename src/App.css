@@ -1,40 +1,52 @@
 :root {
-  --orange: #00c9a7;
-  --orange-dim: rgba(0,201,167,0.15);
-  --navy: #080a0f;
-  --card: #0f1117;
-  --card2: #161920;
+  /* ── Core palette: black · grey · white · mint ── */
+  --mint:       #00c9a7;
+  --mint-dim:   rgba(0,201,167,0.12);
+  --mint-mid:   rgba(0,201,167,0.25);
+
+  --navy:   #080a0f;
+  --card:   #0f1117;
+  --card2:  #161920;
   --border: #1e2130;
-  --text: #e4e8f0;
-  --muted: #6b7090;
-  --green: #00c9a7;
-  --green-dim: rgba(0,201,167,0.12);
-  --blue: #4a9eff;
-  --blue-dim: rgba(74,158,255,0.12);
-  --yellow: #ffd166;
-  --yellow-dim: rgba(255,209,102,0.12);
-  --red: #ff6b6b;
-  --red-dim: rgba(255,107,107,0.12);
-  --purple: #a78bfa;
-  --purple-dim: rgba(167,139,250,0.12);
-  --mint: #00c9a7;
-  --mint-dim: rgba(0,201,167,0.12);
+  --text:   #e8ecf0;
+  --muted:  #5a6070;
+  --subtle: #2a2f3d;
+
+  /* All accent aliases → mint or grey only */
+  --orange:      var(--mint);
+  --orange-dim:  var(--mint-dim);
+  --green:       var(--mint);
+  --green-dim:   var(--mint-dim);
+  --blue:        #8ab4c8;
+  --blue-dim:    rgba(138,180,200,0.12);
+  --yellow:      #b0bec5;
+  --yellow-dim:  rgba(176,190,197,0.12);
+  --red:         #94a3b0;
+  --red-dim:     rgba(148,163,176,0.12);
+  --purple:      #7a8fa0;
+  --purple-dim:  rgba(122,143,160,0.12);
 }
 
 /* ── Light mode ── */
 [data-theme="light"] {
-  --navy: #f0f4f2;
-  --card: #ffffff;
-  --card2: #f4f8f6;
-  --border: #d6e8e3;
-  --text: #0a0f0e;
-  --muted: #5a7068;
-  --orange-dim: rgba(0,160,130,0.1);
-  --green-dim: rgba(0,160,130,0.1);
-  --blue-dim: rgba(30,120,220,0.1);
-  --yellow-dim: rgba(180,130,0,0.1);
-  --red-dim: rgba(200,60,60,0.1);
-  --purple-dim: rgba(120,80,200,0.1);
+  --navy:   #f2f5f4;
+  --card:   #ffffff;
+  --card2:  #f5f8f7;
+  --border: #d0dcd8;
+  --text:   #0a0e0d;
+  --muted:  #5a7068;
+  --subtle: #e0ebe8;
+  --mint:        #009e84;
+  --mint-dim:    rgba(0,158,132,0.1);
+  --mint-mid:    rgba(0,158,132,0.2);
+  --blue:        #607d8b;
+  --blue-dim:    rgba(96,125,139,0.1);
+  --yellow:      #78909c;
+  --yellow-dim:  rgba(120,144,156,0.1);
+  --red:         #78909c;
+  --red-dim:     rgba(120,144,156,0.1);
+  --purple:      #607d8b;
+  --purple-dim:  rgba(96,125,139,0.1);
 }
 
 [data-theme="light"] body {

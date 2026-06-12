@@ -5,8 +5,8 @@
       <stop offset="100%" style="stop-color:#12151f"/>
     </linearGradient>
     <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#f97316"/>
-      <stop offset="100%" style="stop-color:#fb923c"/>
+      <stop offset="0%" style="stop-color:#00c9a7"/>
+      <stop offset="100%" style="stop-color:#00a88b"/>
     </linearGradient>
   </defs>
   <rect width="1200" height="630" fill="url(#bg)"/>
@@ -15,11 +15,11 @@
   <text x="80" y="260" font-size="72" font-weight="800" fill="white" font-family="system-ui, -apple-system, sans-serif">ClaudeCoach</text>
   <text x="80" y="340" font-size="36" fill="#94a3b8" font-family="system-ui, -apple-system, sans-serif">Your AI ultra running coach</text>
   <rect x="80" y="400" width="220" height="52" rx="26" fill="#1e2235"/>
-  <text x="190" y="432" font-size="22" fill="#f97316" font-family="system-ui" text-anchor="middle">🏔 Race Plans</text>
+  <text x="190" y="432" font-size="22" fill="#00c9a7" font-family="system-ui" text-anchor="middle">🏔 Race Plans</text>
   <rect x="320" y="400" width="220" height="52" rx="26" fill="#1e2235"/>
-  <text x="430" y="432" font-size="22" fill="#f97316" font-family="system-ui" text-anchor="middle">⚡ Strava Sync</text>
+  <text x="430" y="432" font-size="22" fill="#00c9a7" font-family="system-ui" text-anchor="middle">⚡ Strava Sync</text>
   <rect x="560" y="400" width="260" height="52" rx="26" fill="#1e2235"/>
-  <text x="690" y="432" font-size="22" fill="#f97316" font-family="system-ui" text-anchor="middle">🧠 AI Coaching</text>
+  <text x="690" y="432" font-size="22" fill="#00c9a7" font-family="system-ui" text-anchor="middle">🧠 AI Coaching</text>
   <line x1="80" y1="510" x2="1120" y2="510" stroke="#1e2235" stroke-width="1"/>
   <text x="80" y="555" font-size="22" fill="#475569" font-family="system-ui">race-plan-app.vercel.app</text>
   <text x="1120" y="555" font-size="22" fill="#475569" font-family="system-ui" text-anchor="end">Free · No account needed</text>
