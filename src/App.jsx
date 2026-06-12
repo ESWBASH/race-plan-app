@@ -2652,25 +2652,9 @@ function TrainingSection({ activities, hevyWorkouts = [], hevyKey = '', setHevyK
       <div className="section-title">Training Calendar</div>
       <div className="section-sub">Schedule workouts, Strava runs, and Hevy strength sessions</div>
 
-      {/* Hevy connect / status */}
-      {!hevyKey ? (
-        <div className="hevy-connect-card">
-          <div className="hevy-connect-left">
-            <span className="hevy-connect-icon">🏋️</span>
-            <div>
-              <div className="hevy-connect-title">Connect Hevy</div>
-              <div className="hevy-connect-sub">See your strength sessions alongside your runs</div>
-            </div>
-          </div>
-          <HevyKeyInput onSave={setHevyKey} />
-        </div>
-      ) : (
-        <div className="hevy-status-bar">
-          <span style={{ color: 'var(--green)', fontWeight: 700, fontSize: 13 }}>🏋️ Hevy connected</span>
-          {hevyLoading && <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: 8 }}>Syncing…</span>}
-          {!hevyLoading && hevyWorkouts.length > 0 && <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: 8 }}>{hevyWorkouts.length} sessions loaded</span>}
-          <button className="hevy-disconnect-btn" onClick={() => setHevyKey('')}>Disconnect</button>
-        </div>
+      {/* Hevy — silent indicator only, connect via ⚙️ Settings */}
+      {hevyKey && hevyLoading && (
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 12 }}>🏋️ Syncing Hevy…</div>
       )}
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -3352,7 +3336,8 @@ export default function App() {
   const [hevyWorkouts, setHevyWorkouts] = useState([])
   const [hevyLoading, setHevyLoading] = useState(false)
   const [theme, setThemeState] = useState(getTheme)
-  const [pendingCheckin, setPendingCheckin] = useState(null) // triggers coach auto-response
+  const [pendingCheckin, setPendingCheckin] = useState(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -3417,9 +3402,10 @@ export default function App() {
         </nav>
         <div className="topbar-right">
           {strava.error && <span className="strava-error">{strava.error}</span>}
-          <button className="theme-toggle" onClick={toggleTheme} title="Toggle light/dark mode">
+          <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
             {theme === 'dark' ? '☀️' : '🌙'}
           </button>
+          <button className="settings-btn" onClick={() => setSettingsOpen(true)} title="Settings">⚙️</button>
           <div className={`strava-badge ${strava.auth ? 'connected' : 'disconnected'}`}
             onClick={strava.auth ? undefined : strava.connect}>
             <div className={`dot ${strava.auth ? 'dot-green' : 'dot-grey'}`} />
@@ -3427,6 +3413,44 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {settingsOpen && (
+        <div className="settings-overlay" onClick={() => setSettingsOpen(false)}>
+          <div className="settings-drawer" onClick={e => e.stopPropagation()}>
+            <div className="settings-header">
+              <div className="settings-title">Settings</div>
+              <button className="settings-close" onClick={() => setSettingsOpen(false)}>✕</button>
+            </div>
+
+            <div className="settings-section">
+              <div className="settings-section-label">Hevy</div>
+              {hevyKey ? (
+                <div className="settings-row">
+                  <span style={{ fontSize: 13, color: 'var(--mint)', fontWeight: 700 }}>🏋️ Connected</span>
+                  {hevyLoading && <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 8 }}>Syncing…</span>}
+                  {!hevyLoading && hevyWorkouts.length > 0 && <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 8 }}>{hevyWorkouts.length} sessions loaded</span>}
+                  <button className="settings-disconnect" onClick={() => setHevyKey('')}>Disconnect</button>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
+                    Connect your Hevy API key so the coach can see your strength sessions and send workouts to the app.
+                  </div>
+                  <HevyKeyInput onSave={k => { setHevyKey(k); setSettingsOpen(false) }} />
+                </div>
+              )}
+            </div>
+
+            <div className="settings-section">
+              <div className="settings-section-label">Theme</div>
+              <div className="settings-row">
+                <button className={`settings-theme-btn ${theme === 'dark' ? 'active' : ''}`} onClick={() => setThemeState('dark')}>🌙 Dark</button>
+                <button className={`settings-theme-btn ${theme === 'light' ? 'active' : ''}`} onClick={() => setThemeState('light')}>☀️ Light</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main>
         {tab === 'brief'    && <BriefSection strava={strava} profile={profile} onCheckinSave={ci => { setPendingCheckin(ci); setTab('coach') }} />}
