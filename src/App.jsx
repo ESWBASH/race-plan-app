@@ -573,6 +573,7 @@ function ChatSection({ activities, athlete, hevyWorkouts = [] }) {
   const bottomRef = useCallback(el => el?.scrollIntoView({ behavior: 'smooth' }), [messages])
   const profile = getProfile()
   const checkIn = getLatestCheckin()
+  const allCheckins = getCheckins()
 
   const METERS_TO_MILES = 0.000621371
   const RUN_TYPES = ['Run','TrailRun','Hike','Walk','VirtualRun']
@@ -591,6 +592,31 @@ function ChatSection({ activities, athlete, hevyWorkouts = [] }) {
   const upcomingRaces = RACES.filter(r => new Date(r.date) > today)
     .sort((a,b) => new Date(a.date) - new Date(b.date))
     .map(r => ({ name: r.name, date: r.date, distanceMi: r.distanceMi, elevationFt: r.elevationFt }))
+
+  // Check-in trend (last 4 weeks)
+  const checkinTrend = allCheckins.slice(0, 4).map(c => ({
+    date: c.date?.slice(0, 10),
+    legs: c.legs, sleep: c.sleep, stress: c.stress, motivation: c.motivation,
+    niggles: c.niggles || '',
+    feeling: c.feeling || '',
+  }))
+
+  // Recurring niggles — any mentioned more than once
+  const niggleHistory = allCheckins
+    .filter(c => c.niggles?.trim())
+    .map(c => `${c.date?.slice(0,10)}: ${c.niggles}`)
+    .slice(0, 6)
+
+  // Race debrief memory
+  const debriefMemory = getDebriefs().map(d => ({
+    race: d.raceId,
+    date: d.date?.slice(0,10),
+    finished: d.finished,
+    scores: { overall: d.overall, execution: d.execution, nutrition: d.nutrition, mental: d.mental, fitness: d.fitness },
+    lessons: d.lessons || '',
+    proud: d.proud || '',
+    nextTime: d.nextTime || '',
+  }))
 
   const weekMiles = (activities || [])
     .filter(a => {
@@ -626,7 +652,22 @@ function ChatSection({ activities, athlete, hevyWorkouts = [] }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: updated.map(m => ({ role: m.role, content: m.content })),
-          context: { profile, races: upcomingRaces, recentRuns, checkIn, currentPhase, weekMiles: weekMiles.toFixed(1), recentStrength: hevyWorkouts.slice(0, 5).map(w => ({ date: w.date, title: w.title, exercises: w.exercises.map(e => e.name).join(', '), sets: w.totalSets })) },
+          context: {
+            profile,
+            races: upcomingRaces,
+            recentRuns,
+            checkIn,
+            checkinTrend,
+            niggleHistory,
+            debriefMemory,
+            currentPhase,
+            weekMiles: weekMiles.toFixed(1),
+            recentStrength: hevyWorkouts.slice(0, 5).map(w => ({
+              date: w.date, title: w.title,
+              exercises: w.exercises.map(e => e.name).join(', '),
+              sets: w.totalSets,
+            })),
+          },
         }),
       })
       const data = await res.json()

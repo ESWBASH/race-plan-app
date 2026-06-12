@@ -15,8 +15,10 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' })
 
-  // Build rich system prompt from athlete context
-  const { profile, races, recentRuns, checkIn, currentPhase, weekMiles, recentStrength } = context || {}
+  const {
+    profile, races, recentRuns, checkIn, checkinTrend,
+    niggleHistory, debriefMemory, currentPhase, weekMiles, recentStrength
+  } = context || {}
 
   const raceList = (races || [])
     .map(r => `${r.name} (${r.date}, ${r.distanceMi}mi, ${r.elevationFt}ft vert)`)
@@ -27,14 +29,40 @@ export default async function handler(req, res) {
     .join('\n  ')
 
   const strengthList = (recentStrength || []).length
-    ? (recentStrength).map(s => `${s.date}: ${s.title} — ${s.exercises} (${s.sets} sets)`).join('\n  ')
+    ? recentStrength.map(s => `${s.date}: ${s.title} — ${s.exercises} (${s.sets} sets)`).join('\n  ')
     : 'No strength data connected'
 
   const checkInStr = checkIn
     ? `Legs: ${checkIn.legs}/5 | Sleep: ${checkIn.sleep}/5 | Stress: ${checkIn.stress}/5 | Motivation: ${checkIn.motivation}/5${checkIn.niggles ? ` | Niggles: ${checkIn.niggles}` : ''}${checkIn.feeling ? ` | Feeling: "${checkIn.feeling}"` : ''}`
     : 'No check-in data yet'
 
-  const system = `You are a world-class ultra trail and fell running coach. You are direct, warm, specific, and deeply knowledgeable. You never give generic advice — everything is tailored to this athlete's actual data, races, and situation.
+  const trendStr = (checkinTrend || []).length
+    ? checkinTrend.map(c =>
+        `${c.date}: Legs ${c.legs}/5 Sleep ${c.sleep}/5 Stress ${c.stress}/5 Motivation ${c.motivation}/5${c.niggles ? ` [Niggle: ${c.niggles}]` : ''}${c.feeling ? ` "${c.feeling}"` : ''}`
+      ).join('\n  ')
+    : 'No trend data yet'
+
+  const nigglesStr = (niggleHistory || []).length
+    ? niggleHistory.join('\n  ')
+    : 'No recurring niggles logged'
+
+  const debriefStr = (debriefMemory || []).length
+    ? debriefMemory.map(d => {
+        const scores = Object.entries(d.scores || {})
+          .filter(([,v]) => v)
+          .map(([k,v]) => `${k}: ${v}/5`)
+          .join(', ')
+        return [
+          `Race: ${d.race} (${d.date}) — ${d.finished ? 'Finished' : 'DNF'}`,
+          scores ? `  Scores: ${scores}` : '',
+          d.lessons ? `  Lessons: ${d.lessons}` : '',
+          d.proud ? `  Proud of: ${d.proud}` : '',
+          d.nextTime ? `  Next time: ${d.nextTime}` : '',
+        ].filter(Boolean).join('\n')
+      }).join('\n\n')
+    : 'No race debriefs yet'
+
+  const system = `You are a world-class ultra trail and fell running coach with full memory of this athlete's history. You are direct, warm, specific, and deeply knowledgeable. You never give generic advice — everything is grounded in their actual data, race history, patterns, and stated goals.
 
 ATHLETE PROFILE:
 - Level: ${profile?.level || 'ultra runner'}
@@ -55,8 +83,17 @@ RECENT TRAINING (last 2 weeks):
 RECENT STRENGTH SESSIONS (from Hevy):
   ${strengthList}
 
-LATEST WEEKLY CHECK-IN:
+LATEST CHECK-IN:
   ${checkInStr}
+
+CHECK-IN TREND (last 4 weeks — read for patterns, not just snapshots):
+  ${trendStr}
+
+INJURY & NIGGLE HISTORY:
+  ${nigglesStr}
+
+RACE DEBRIEF MEMORY (what happened, what was learned):
+  ${debriefStr}
 
 COACHING RULES:
 - Always use MILES not km
@@ -66,6 +103,9 @@ COACHING RULES:
 - When they mention fatigue, pain or injury — be appropriately cautious and conservative
 - Reference their specific races by name (Tittesworth, 5 Valleys, UTYD, Spine Sprint, The Lap)
 - You know their WHY — use it when relevant to motivate or ground them
+- When you see a recurring niggle in the history, acknowledge it proactively — don't wait to be asked
+- When check-in scores have been trending down for multiple weeks, call it out
+- Reference past race debriefs when relevant — "last time at X you said..."
 - Be honest. A good coach calls things out. Don't just validate.
 - If they ask "should I run today?" — give a real yes/no with reasoning based on their data`
 
@@ -79,7 +119,7 @@ COACHING RULES:
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 600,
+        max_tokens: 700,
         system,
         messages,
       }),
