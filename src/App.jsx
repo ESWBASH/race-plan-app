@@ -843,8 +843,83 @@ function ChatSection({ activities, athlete, hevyWorkouts = [], pendingCheckin, o
 // YEAR ARC
 // ═══════════════════════════════════════════════════════════════════════════════
 
+const CONFIRMED_RACES_KEY = 'confirmed_strava_races'
+const DISMISSED_RACES_KEY = 'dismissed_strava_races'
+
+function getConfirmedRaceIds() {
+  try { return JSON.parse(localStorage.getItem(CONFIRMED_RACES_KEY) || '[]') } catch { return [] }
+}
+function saveConfirmedRaceId(id) {
+  const ids = getConfirmedRaceIds()
+  if (!ids.includes(id)) localStorage.setItem(CONFIRMED_RACES_KEY, JSON.stringify([...ids, id]))
+}
+function getDismissedRaceIds() {
+  try { return JSON.parse(localStorage.getItem(DISMISSED_RACES_KEY) || '[]') } catch { return [] }
+}
+function saveDismissedRaceId(id) {
+  const ids = getDismissedRaceIds()
+  if (!ids.includes(id)) localStorage.setItem(DISMISSED_RACES_KEY, JSON.stringify([...ids, id]))
+}
+
 function SeasonSection({ activities = [], stravaConnected = false }) {
   const today = new Date()
+  const [classifyState, setClassifyState] = useState('idle') // idle | loading | review | done
+  const [suggestions, setSuggestions] = useState([]) // AI-suggested races pending review
+  const [confirmedIds, setConfirmedIds] = useState(getConfirmedRaceIds)
+  const [dismissedIds, setDismissedIds] = useState(getDismissedRaceIds)
+
+  async function findMyRaces() {
+    setClassifyState('loading')
+    const RUN_TYPES = ['Run', 'TrailRun', 'VirtualRun', 'Hike']
+    // Only classify past activities not already confirmed/dismissed/in RACES
+    const dismissed = getDismissedRaceIds()
+    const confirmed = getConfirmedRaceIds()
+    const candidates = activities.filter(a => {
+      if (!RUN_TYPES.includes(a.type)) return false
+      if (new Date(a.start_date_local) >= today) return false
+      if (a.workout_type === 1) return false // already a Strava race
+      if (dismissed.includes(a.id) || confirmed.includes(a.id)) return false
+      const d = new Date(a.start_date_local)
+      if (d.getFullYear() < 2025) return false // only recent history
+      // Skip if already matched to a planned RACES entry
+      const alreadyMatched = RACES.some(r => Math.abs(new Date(r.date) - d) / 86400000 <= 3)
+      return !alreadyMatched
+    })
+    if (!candidates.length) { setClassifyState('done'); return }
+    try {
+      const resp = await fetch('/api/classify-races', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activities: candidates }),
+      })
+      const data = await resp.json()
+      const raceSuggestions = (data.races || []).filter(r => r.verdict === 'race')
+      if (!raceSuggestions.length) { setClassifyState('done'); return }
+      // Enrich suggestions with full activity data
+      const enriched = raceSuggestions.map(s => ({
+        ...s,
+        activity: candidates.find(a => a.id === s.id),
+      })).filter(s => s.activity)
+      setSuggestions(enriched)
+      setClassifyState('review')
+    } catch (err) {
+      console.error(err)
+      setClassifyState('idle')
+    }
+  }
+
+  function confirmRace(id) {
+    saveConfirmedRaceId(id)
+    setConfirmedIds(getConfirmedRaceIds())
+    setSuggestions(s => s.filter(x => x.id !== id))
+    if (suggestions.length <= 1) setClassifyState('done')
+  }
+  function dismissRace(id) {
+    saveDismissedRaceId(id)
+    setDismissedIds(getDismissedRaceIds())
+    setSuggestions(s => s.filter(x => x.id !== id))
+    if (suggestions.length <= 1) setClassifyState('done')
+  }
 
   // Calendar year 2026
   const yearStart = new Date('2026-01-01')
@@ -891,19 +966,18 @@ function SeasonSection({ activities = [], stravaConnected = false }) {
   }
 
   // Detect historic races from Strava not already in RACES array
-  // ONLY use workout_type === 1 (user explicitly tagged as race in Strava)
-  // raceyName/longDist heuristics cause too many false positives (every trail run, every long run)
+  // Includes: workout_type === 1 (user tagged in Strava) OR user confirmed via AI classifier
   const stravaRaces = runs.filter(a => {
     const d = new Date(a.start_date_local)
-    if (d.getFullYear() !== 2026) return false
+    if (d.getFullYear() < 2025) return false
     if (d >= today) return false
-    if (a.workout_type !== 1) return false
     // Only include if not already matched to a RACES entry
     const alreadyMatched = RACES.some(r => {
       const diff = Math.abs(new Date(r.date) - d) / 86400000
       return diff <= 3
     })
-    return !alreadyMatched
+    if (alreadyMatched) return false
+    return a.workout_type === 1 || confirmedIds.includes(a.id)
   }).map(a => ({
     id: `strava_${a.id}`,
     name: a.name,
@@ -953,6 +1027,56 @@ function SeasonSection({ activities = [], stravaConnected = false }) {
             </div>
           </div>
           <div className="next-race-hero-desc">{nextRace.description.slice(0, 130)}…</div>
+        </div>
+      )}
+
+      {/* AI Race Finder */}
+      {stravaConnected && (
+        <div style={{ marginBottom: 16 }}>
+          {classifyState === 'idle' && (
+            <button className="btn btn-ghost" style={{ fontSize: 12, gap: 6 }} onClick={findMyRaces}>
+              🔍 Find past races from Strava
+            </button>
+          )}
+          {classifyState === 'loading' && (
+            <div style={{ fontSize: 12, color: 'var(--muted)', padding: '8px 0' }}>
+              🤖 Analysing your Strava history…
+            </div>
+          )}
+          {classifyState === 'done' && suggestions.length === 0 && (
+            <div style={{ fontSize: 12, color: 'var(--muted)', padding: '8px 0' }}>
+              ✓ No additional races found{confirmedIds.length > 0 ? ` — ${confirmedIds.length} confirmed` : ''}
+            </div>
+          )}
+          {classifyState === 'review' && suggestions.length > 0 && (
+            <div className="card" style={{ marginBottom: 0 }}>
+              <div className="card-title" style={{ marginBottom: 4 }}>🤖 Possible races found — confirm?</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 12 }}>
+                AI detected these from your Strava history. Tap ✓ to add to your season, ✗ to dismiss.
+              </div>
+              {suggestions.map(s => {
+                const a = s.activity
+                const miles = (a.distance * 0.000621371).toFixed(1)
+                const elevFt = Math.round((a.total_elevation_gain || 0) * 3.28084)
+                const hrs = Math.floor(a.moving_time / 3600)
+                const mins = Math.floor((a.moving_time % 3600) / 60)
+                const dateStr = new Date(a.start_date_local).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                return (
+                  <div key={s.id} className="classify-row">
+                    <div className="classify-row-body">
+                      <div className="classify-row-name">{a.name}</div>
+                      <div className="classify-row-meta">{dateStr} · {miles}mi · {elevFt}ft · {hrs}h{mins}m</div>
+                      <div className="classify-row-reason">{s.reason}</div>
+                    </div>
+                    <div className="classify-row-actions">
+                      <button className="classify-btn confirm" onClick={() => confirmRace(s.id)}>✓</button>
+                      <button className="classify-btn dismiss" onClick={() => dismissRace(s.id)}>✗</button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 

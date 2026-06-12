@@ -1619,6 +1619,36 @@ main { flex: 1; padding: 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
   line-height: 1.5;
 }
 
+/* ── AI Race Classifier ── */
+.classify-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.classify-row:last-child { border-bottom: none; }
+.classify-row-body { flex: 1; min-width: 0; }
+.classify-row-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.classify-row-meta { font-size: 11px; color: var(--muted); }
+.classify-row-reason { font-size: 11px; color: var(--muted); font-style: italic; margin-top: 3px; }
+.classify-row-actions { display: flex; gap: 6px; flex-shrink: 0; padding-top: 2px; }
+.classify-btn {
+  width: 30px; height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card2);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+  transition: all 0.15s;
+}
+.classify-btn.confirm { color: var(--mint); border-color: var(--mint); }
+.classify-btn.confirm:hover { background: var(--mint-dim); }
+.classify-btn.dismiss { color: var(--red); border-color: var(--red); }
+.classify-btn.dismiss:hover { background: var(--red-dim); }
+
 /* ── Year Quarter Blocks ── */
 .year-quarter {
   background: var(--card);
