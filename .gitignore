@@ -1,1 +1,24 @@
+# Vercel
 .vercel
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Env files — never commit secrets
+.env
+.env.local
+.env.production
+.env*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
