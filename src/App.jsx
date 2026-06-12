@@ -768,16 +768,16 @@ function ChatSection({ activities, athlete, hevyWorkouts = [] }) {
 function SeasonSection({ activities = [], stravaConnected = false }) {
   const today = new Date()
 
-  // 12-month window: last June → next May
-  const yearStart = new Date('2026-06-01')
-  const yearEnd   = new Date('2027-05-31')
+  // Calendar year 2026
+  const yearStart = new Date('2026-01-01')
+  const yearEnd   = new Date('2026-12-31')
 
-  // Quarters (seasons)
+  // Standard quarters
   const QUARTERS = [
-    { id: 'q1', label: 'Summer',  emoji: '☀️',  start: '2026-06-01', end: '2026-08-31', color: 'var(--orange)' },
-    { id: 'q2', label: 'Autumn',  emoji: '🍂',  start: '2026-09-01', end: '2026-11-30', color: '#e67e22' },
-    { id: 'q3', label: 'Winter',  emoji: '❄️',  start: '2026-12-01', end: '2027-02-28', color: 'var(--blue)' },
-    { id: 'q4', label: 'Spring',  emoji: '🌿',  start: '2027-03-01', end: '2027-05-31', color: 'var(--green)' },
+    { id: 'q1', label: 'Q1 — Winter/Spring', emoji: '❄️',  start: '2026-01-01', end: '2026-03-31', color: 'var(--blue)' },
+    { id: 'q2', label: 'Q2 — Spring/Summer', emoji: '🌿',  start: '2026-04-01', end: '2026-06-30', color: 'var(--green)' },
+    { id: 'q3', label: 'Q3 — Summer/Autumn', emoji: '☀️',  start: '2026-07-01', end: '2026-09-30', color: 'var(--orange)' },
+    { id: 'q4', label: 'Q4 — Autumn/Winter', emoji: '🍂',  start: '2026-10-01', end: '2026-12-31', color: '#e67e22' },
   ]
 
   const RUN_TYPES = ['Run', 'TrailRun', 'VirtualRun', 'Hike']
@@ -812,10 +812,39 @@ function SeasonSection({ activities = [], stravaConnected = false }) {
     })
   }
 
+  // Detect historic races from Strava not already in RACES array
+  // workout_type === 1 means "Race" in Strava
+  const stravaRaces = runs.filter(a => {
+    const d = new Date(a.start_date_local)
+    if (d.getFullYear() !== 2026) return false
+    if (d >= today) return false
+    // Strava race type, or name looks like a race, or long distance (>10mi)
+    const isRaceType = a.workout_type === 1
+    const name = (a.name || '').toLowerCase()
+    const raceyName = ['race', 'ultra', 'marathon', '50k', '50m', '100k', '100m', 'fell', 'trail', 'parkrun'].some(k => name.includes(k))
+    const longDist = (a.distance * 0.000621371) >= 13
+    // Only include if not already matched to a RACES entry
+    const alreadyMatched = RACES.some(r => {
+      const diff = Math.abs(new Date(r.date) - d) / 86400000
+      return diff <= 3
+    })
+    return !alreadyMatched && (isRaceType || raceyName || longDist)
+  }).map(a => ({
+    id: `strava_${a.id}`,
+    name: a.name,
+    date: a.start_date_local?.slice(0, 10),
+    distanceMi: (a.distance * 0.000621371).toFixed(1),
+    elevationFt: Math.round((a.total_elevation_gain || 0) * 3.28084),
+    movingTime: a.moving_time,
+    isStravaOnly: true,
+  }))
+
   const sorted = [...RACES].sort((a, b) => new Date(a.date) - new Date(b.date))
-  const totalPlannedMiles = RACES.reduce((s, r) => s + r.distanceMi, 0)
-  const racesDone = sorted.filter(r => new Date(r.date) < today).length
-  const totalStravaYearMiles = Math.round(qMiles('2026-06-01', '2027-05-31'))
+  // Filter RACES to 2026 only for the year view
+  const yearRaces = sorted.filter(r => new Date(r.date).getFullYear() === 2026)
+  const totalPlannedMiles = yearRaces.reduce((s, r) => s + r.distanceMi, 0)
+  const racesDone = yearRaces.filter(r => new Date(r.date) < today).length
+  const totalStravaYearMiles = Math.round(qMiles('2026-01-01', '2026-12-31'))
 
   // Year progress bar
   const yearProgress = Math.min(100, Math.max(0,
@@ -828,16 +857,16 @@ function SeasonSection({ activities = [], stravaConnected = false }) {
 
   return (
     <div>
-      <div className="section-title">Your Year</div>
-      <div className="section-sub">June 2026 → The Lap, May 2027 · 4 seasons · {sorted.length} races</div>
+      <div className="section-title">2026 Season</div>
+      <div className="section-sub">Jan → Dec 2026 · {yearRaces.length} planned races{stravaRaces.length > 0 ? ` · ${stravaRaces.length} found on Strava` : ''}</div>
 
       {/* Year stats */}
       <div className="grid-4" style={{ marginBottom: 20 }}>
         {[
-          { label: 'Races', value: `${racesDone}/${sorted.length}`, sub: `${sorted.length - racesDone} ahead` },
-          { label: 'Race Miles', value: totalPlannedMiles, sub: 'planned total' },
-          { label: 'Strava Miles', value: stravaConnected ? `${totalStravaYearMiles}` : '—', sub: stravaConnected ? 'last 12 months' : 'connect Strava' },
-          { label: 'Total Vert', value: `${(RACES.reduce((s,r)=>s+r.elevationFt,0)/1000).toFixed(0)}k ft`, sub: 'across all races' },
+          { label: 'Races done', value: `${racesDone}/${yearRaces.length}`, sub: `${yearRaces.length - racesDone} ahead` },
+          { label: 'Race Miles', value: totalPlannedMiles, sub: 'planned 2026' },
+          { label: 'Training Miles', value: stravaConnected ? `${totalStravaYearMiles}` : '—', sub: stravaConnected ? '2026 total' : 'connect Strava' },
+          { label: 'Race Vert', value: `${(yearRaces.reduce((s,r)=>s+(r.elevationFt||0),0)/1000).toFixed(0)}k ft`, sub: 'planned total' },
         ].map((s, i) => (
           <div key={i} className="stat-card">
             <div className="stat-value" style={{ color: 'var(--orange)' }}>{s.value}</div>
@@ -859,16 +888,30 @@ function SeasonSection({ activities = [], stravaConnected = false }) {
             </div>
           </div>
           <div className="season-pins">
-            {sorted.map(r => {
+            {/* Planned races */}
+            {yearRaces.map(r => {
               const p = Math.min(99, Math.max(1,
                 ((new Date(r.date) - yearStart) / (yearEnd - yearStart)) * 100
               ))
               const isPast = new Date(r.date) < today
-              const isNext = !isPast && sorted.find(x => new Date(x.date) > today)?.id === r.id
+              const isNext = !isPast && yearRaces.find(x => new Date(x.date) > today)?.id === r.id
               return (
                 <div key={r.id} className={`season-pin ${isPast ? 'past' : ''} ${isNext ? 'next' : ''}`} style={{ left: `${p}%` }}>
                   <div className="season-pin-dot" style={{ background: isPast ? 'var(--muted)' : r.color }} />
-                  <div className="season-pin-name">{r.shortName}</div>
+                  <div className="season-pin-name">{r.shortName || r.name?.split(' ')[0]}</div>
+                  <div className="season-pin-date">{fmtDate(r.date)}</div>
+                </div>
+              )
+            })}
+            {/* Strava-detected historic races */}
+            {stravaRaces.map(r => {
+              const p = Math.min(99, Math.max(1,
+                ((new Date(r.date) - yearStart) / (yearEnd - yearStart)) * 100
+              ))
+              return (
+                <div key={r.id} className="season-pin past" style={{ left: `${p}%` }}>
+                  <div className="season-pin-dot" style={{ background: 'var(--purple)' }} />
+                  <div className="season-pin-name" style={{ color: 'var(--purple)' }}>{r.name?.split(' ').slice(0,2).join(' ')}</div>
                   <div className="season-pin-date">{fmtDate(r.date)}</div>
                 </div>
               )
@@ -883,7 +926,8 @@ function SeasonSection({ activities = [], stravaConnected = false }) {
         const qEnd = new Date(q.end)
         const isActive = today >= qStart && today <= qEnd
         const isPast = today > qEnd
-        const qRaceList = sorted.filter(r => { const d = new Date(r.date); return d >= qStart && d <= qEnd })
+        const qRaceList = yearRaces.filter(r => { const d = new Date(r.date); return d >= qStart && d <= qEnd })
+        const qStravaRaces = stravaRaces.filter(r => { const d = new Date(r.date); return d >= qStart && d <= qEnd })
         const miles = Math.round(qMiles(q.start, q.end))
         const vert = Math.round(qVert(q.start, q.end))
         const runCount = qRuns(q.start, q.end).length
@@ -910,10 +954,35 @@ function SeasonSection({ activities = [], stravaConnected = false }) {
               )}
             </div>
 
-            {qRaceList.length === 0 ? (
+            {qRaceList.length === 0 && qStravaRaces.length === 0 ? (
               <div className="year-quarter-empty">No races this quarter</div>
             ) : (
-              qRaceList.map(r => {
+              <>
+              {qStravaRaces.map(r => {
+                const hrs = r.movingTime ? Math.floor(r.movingTime / 3600) : null
+                const mins = r.movingTime ? Math.floor((r.movingTime % 3600) / 60) : null
+                return (
+                  <div key={r.id} className="year-race-row past">
+                    <div className="year-race-color-bar" style={{ background: 'var(--purple)' }} />
+                    <div className="year-race-body">
+                      <div className="year-race-top">
+                        <div>
+                          <div className="year-race-name">{r.name}</div>
+                          <div className="year-race-meta">
+                            {r.distanceMi}mi · {(r.elevationFt/1000).toFixed(1)}k ft
+                            {hrs !== null ? ` · ${hrs}h${mins}m` : ''}
+                          </div>
+                        </div>
+                        <div className="year-race-badge-col">
+                          <div className="year-race-date">{fmtDate(r.date)}</div>
+                          <div className="year-race-status done" style={{ background: 'var(--purple-dim)', color: 'var(--purple)' }}>Strava ✓</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+              {qRaceList.map(r => {
                 const isPastRace = new Date(r.date) < today
                 const days = Math.ceil((new Date(r.date) - today) / 86400000)
                 const stravaResult = stravaConnected ? findStravaResult(r) : null
@@ -947,7 +1016,8 @@ function SeasonSection({ activities = [], stravaConnected = false }) {
                     </div>
                   </div>
                 )
-              })
+              })}
+              </>
             )}
           </div>
         )
