@@ -1472,7 +1472,7 @@ main { flex: 1; padding: 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
 
 .season-progress {
   height: 100%;
-  background: var(--orange);
+  background: var(--border);
   border-radius: 3px;
   transition: width 0.5s;
 }
@@ -1490,16 +1490,16 @@ main { flex: 1; padding: 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
 
 .season-now-dot {
   width: 14px; height: 14px;
-  background: var(--orange);
+  background: var(--mint);
   border: 2px solid var(--navy);
   border-radius: 50%;
-  box-shadow: 0 0 8px var(--orange);
+  box-shadow: 0 0 8px var(--mint);
 }
 
 .season-now-label {
   font-size: 10px;
   font-weight: 700;
-  color: var(--orange);
+  color: var(--mint);
   white-space: nowrap;
   margin-top: 4px;
 }
