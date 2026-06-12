@@ -891,22 +891,19 @@ function SeasonSection({ activities = [], stravaConnected = false }) {
   }
 
   // Detect historic races from Strava not already in RACES array
-  // workout_type === 1 means "Race" in Strava
+  // ONLY use workout_type === 1 (user explicitly tagged as race in Strava)
+  // raceyName/longDist heuristics cause too many false positives (every trail run, every long run)
   const stravaRaces = runs.filter(a => {
     const d = new Date(a.start_date_local)
     if (d.getFullYear() !== 2026) return false
     if (d >= today) return false
-    // Strava race type, or name looks like a race, or long distance (>10mi)
-    const isRaceType = a.workout_type === 1
-    const name = (a.name || '').toLowerCase()
-    const raceyName = ['race', 'ultra', 'marathon', '50k', '50m', '100k', '100m', 'fell', 'trail', 'parkrun'].some(k => name.includes(k))
-    const longDist = (a.distance * 0.000621371) >= 13
+    if (a.workout_type !== 1) return false
     // Only include if not already matched to a RACES entry
     const alreadyMatched = RACES.some(r => {
       const diff = Math.abs(new Date(r.date) - d) / 86400000
       return diff <= 3
     })
-    return !alreadyMatched && (isRaceType || raceyName || longDist)
+    return !alreadyMatched
   }).map(a => ({
     id: `strava_${a.id}`,
     name: a.name,
@@ -933,10 +930,31 @@ function SeasonSection({ activities = [], stravaConnected = false }) {
     return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
   }
 
+  const nextRace = sorted.find(r => new Date(r.date) >= today)
+  const nextRaceDays = nextRace ? Math.ceil((new Date(nextRace.date) - today) / 86400000) : null
+
   return (
     <div>
       <div className="section-title">2026 Season</div>
-      <div className="section-sub">Jan → Dec 2026 · {yearRaces.length} planned races{stravaRaces.length > 0 ? ` · ${stravaRaces.length} found on Strava` : ''}</div>
+
+      {/* Next race hero */}
+      {nextRace && (
+        <div className="next-race-hero" style={{ borderLeftColor: nextRace.color }}>
+          <div className="next-race-hero-top">
+            <div>
+              <div className="next-race-hero-label">Next race</div>
+              <div className="next-race-hero-name">{nextRace.name}</div>
+              <div className="next-race-hero-meta">{nextRace.type} · {nextRace.distanceMi}mi · {(nextRace.elevationFt/1000).toFixed(1)}k ft vert · {nextRace.location}</div>
+            </div>
+            <div className="next-race-hero-countdown">
+              <div className="next-race-hero-days">{nextRaceDays === 0 ? '🏁' : nextRaceDays}</div>
+              <div className="next-race-hero-days-label">{nextRaceDays === 0 ? 'race day' : nextRaceDays === 1 ? 'day to go' : 'days to go'}</div>
+              <div className="next-race-hero-date">{fmtDate(nextRace.date)}</div>
+            </div>
+          </div>
+          <div className="next-race-hero-desc">{nextRace.description.slice(0, 130)}…</div>
+        </div>
+      )}
 
       {/* Year stats */}
       <div className="grid-4" style={{ marginBottom: 20 }}>
@@ -947,7 +965,7 @@ function SeasonSection({ activities = [], stravaConnected = false }) {
           { label: 'Race Vert', value: `${(yearRaces.reduce((s,r)=>s+(r.elevationFt||0),0)/1000).toFixed(0)}k ft`, sub: 'planned total' },
         ].map((s, i) => (
           <div key={i} className="stat-card">
-            <div className="stat-value" style={{ color: 'var(--orange)' }}>{s.value}</div>
+            <div className="stat-value" style={{ color: 'var(--text)' }}>{s.value}</div>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{s.label}</div>
             <div className="stat-label">{s.sub}</div>
           </div>

@@ -12,9 +12,9 @@
   --muted:  #52575f;
   --subtle: #1a1d22;
 
-  /* Most accents → white/grey. Mint reserved for 2–3 key spots only. */
-  --orange:      #ffffff;
-  --orange-dim:  rgba(255,255,255,0.07);
+  /* Most accents → light grey. Mint reserved for 2–3 key spots only. */
+  --orange:      #d4d8de;
+  --orange-dim:  rgba(212,216,222,0.08);
   --green:       var(--mint);
   --green-dim:   var(--mint-dim);
   --blue:        #8a9ab0;
@@ -1556,6 +1556,69 @@ main { flex: 1; padding: 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
 .phase-name { font-size: 12px; font-weight: 700; }
 .phase-desc { font-size: 11px; color: var(--muted); }
 
+/* ── Next Race Hero ── */
+.next-race-hero {
+  background: var(--card2);
+  border-left: 4px solid var(--mint);
+  border-radius: 10px;
+  padding: 18px 18px 14px;
+  margin-bottom: 20px;
+}
+.next-race-hero-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.next-race-hero-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.next-race-hero-name {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--text);
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+.next-race-hero-meta {
+  font-size: 11px;
+  color: var(--muted);
+}
+.next-race-hero-countdown {
+  text-align: right;
+  flex-shrink: 0;
+}
+.next-race-hero-days {
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--mint);
+  line-height: 1;
+}
+.next-race-hero-days-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+.next-race-hero-date {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.next-race-hero-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 /* ── Year Quarter Blocks ── */
 .year-quarter {
   background: var(--card);
@@ -1572,11 +1635,11 @@ main { flex: 1; padding: 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
 .year-quarter-left { display: flex; align-items: center; gap: 10px; }
 .year-quarter-emoji { font-size: 22px; }
 .year-quarter-label { font-size: 15px; font-weight: 800; }
-.year-quarter-now { font-size: 9px; font-weight: 700; letter-spacing: 1px; background: var(--orange); color: white; padding: 2px 6px; border-radius: 20px; margin-left: 6px; vertical-align: middle; }
+.year-quarter-now { font-size: 9px; font-weight: 700; letter-spacing: 1px; background: var(--mint); color: #07100e; padding: 2px 6px; border-radius: 20px; margin-left: 6px; vertical-align: middle; }
 .year-quarter-dates { font-size: 11px; color: var(--muted); margin-top: 2px; }
 .year-quarter-stats { display: flex; gap: 10px; }
 .year-quarter-stat { display: flex; flex-direction: column; align-items: flex-end; }
-.year-quarter-stat span:first-child { font-size: 15px; font-weight: 800; color: var(--orange); }
+.year-quarter-stat span:first-child { font-size: 15px; font-weight: 800; color: var(--text); }
 .year-quarter-stat span:last-child { font-size: 9px; color: var(--muted); }
 .year-quarter-empty { font-size: 12px; color: var(--muted); font-style: italic; padding: 4px 0; }
 
@@ -1593,7 +1656,7 @@ main { flex: 1; padding: 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
 .year-race-date { font-size: 11px; color: var(--muted); }
 .year-race-status { font-size: 15px; font-weight: 900; color: var(--text); }
 .year-race-status.done { color: var(--green); font-size: 12px; }
-.year-race-status.soon { color: var(--orange); }
+.year-race-status.soon { color: var(--mint); }
 .year-race-strava { font-size: 11px; color: var(--muted); margin-top: 4px; display: flex; align-items: center; gap: 4px; }
 .year-race-strava.muted { opacity: 0.5; }
 
