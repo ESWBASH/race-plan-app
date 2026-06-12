@@ -17,7 +17,7 @@ export default async function handler(req, res) {
 
   const {
     profile, races, recentRuns, checkIn, checkinTrend,
-    niggleHistory, debriefMemory, currentPhase, weekMiles, recentStrength
+    niggleHistory, debriefMemory, currentPhase, brainReadiness, weekMiles, recentStrength
   } = context || {}
 
   const raceList = (races || [])
@@ -75,7 +75,9 @@ UPCOMING RACES:
   ${raceList || 'No races listed'}
 
 CURRENT PHASE: ${currentPhase || 'Training'}
-MILES THIS WEEK: ${weekMiles || 0}
+MILES (ROLLING 7 DAYS): ${weekMiles || 0}
+RACE BRAIN READINESS SIGNAL: ${brainReadiness || 'Not computed'}
+IMPORTANT: Your coaching response MUST be consistent with the Race Brain readiness signal above. If the signal says "YOU ARE READY" do not contradict it with doubt. If it says "RECOVERY DAY", do not suggest hard training. The readiness signal is computed from the same data you see — align with it.
 
 RECENT TRAINING (last 2 weeks):
   ${runList || 'No Strava data yet'}
@@ -107,7 +109,9 @@ COACHING RULES:
 - When check-in scores have been trending down for multiple weeks, call it out
 - Reference past race debriefs when relevant — "last time at X you said..."
 - Be honest. A good coach calls things out. Don't just validate.
-- If they ask "should I run today?" — give a real yes/no with reasoning based on their data`
+- If they ask "should I run today?" — give a real yes/no with reasoning based on their data
+- DATA QUALITY RULE: If recent training data is sparse (fewer than 3 runs in 14 days), or check-in data is missing, flag this FIRST before drawing conclusions. Say something like "I'm working from limited data this week — based on what I can see..." before advising. Never project confidence from thin data.
+- PATTERN RULE: If an activity count or mileage is unusually high or low compared to normal, note it explicitly ("you've only logged 1 run in the last 7 days — is that right?") before advising around it. Don't silently assume the data is complete.`
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {

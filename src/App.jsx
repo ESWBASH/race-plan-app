@@ -423,6 +423,14 @@ function getMonday(offset = 0) {
   return d
 }
 
+// Rolling 7 days ending now — use this instead of calendar-week for mileage displays
+function rolling7Start() {
+  const d = new Date()
+  d.setDate(d.getDate() - 6)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
 function getWorkouts() {
   try { return JSON.parse(localStorage.getItem('cc_workouts_v2') || '[]') } catch { return [] }
 }
@@ -472,30 +480,55 @@ function clearStravaAuth() { localStorage.removeItem('cc_strava_auth') }
 // WEEKLY CHECK-IN
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function CheckInWidget({ onCheckinDone }) {
+function CheckInWidget({ onCheckinDone, onCheckinSave }) {
   const [open, setOpen] = useState(false)
-  const [scores, setScores] = useState({ legs: 3, sleep: 3, stress: 3, motivation: 3 })
+  const [scores, setScores] = useState({ legs: 0, sleep: 0, stress: 0, motivation: 0 })
   const [niggles, setNiggles] = useState('')
   const [feeling, setFeeling] = useState('')
   const latest = getLatestCheckin()
   const overdue = checkinOverdue()
 
   function submit() {
-    saveCheckin({ ...scores, niggles, feeling })
+    const saved = { ...scores, niggles, feeling }
+    saveCheckin(saved)
     setOpen(false)
+    setScores({ legs: 0, sleep: 0, stress: 0, motivation: 0 })
+    setNiggles('')
+    setFeeling('')
     if (onCheckinDone) onCheckinDone()
+    if (onCheckinSave) onCheckinSave(saved)
   }
 
-  function ScoreRow({ label, field, icon, low, high }) {
+  function ScoreRow({ label, field, icon, low, high, invert = false }) {
+    const val = scores[field]
+    // For inverted fields (stress): low score = good (mint), high score = bad (red)
+    // For normal fields: low score = bad (red), high score = good (mint)
+    function dotColor(n) {
+      if (val < n) return 'var(--border)' // unfilled
+      if (invert) {
+        if (n >= 4) return 'var(--red)'
+        if (n === 3) return 'var(--yellow)'
+        return 'var(--mint)'
+      } else {
+        if (n <= 2) return 'var(--red)'
+        if (n === 3) return 'var(--yellow)'
+        return 'var(--mint)'
+      }
+    }
+    const labelColor = val === 0 ? 'var(--muted)' : invert
+      ? (val >= 4 ? 'var(--red)' : val === 3 ? 'var(--yellow)' : 'var(--mint)')
+      : (val <= 2 ? 'var(--red)' : val === 3 ? 'var(--yellow)' : 'var(--mint)')
+    const labelText = val === 0 ? '—' : (val <= 2 ? low : val >= 4 ? high : 'OK')
     return (
       <div className="ci-row">
         <div className="ci-row-label">{icon} {label}</div>
         <div className="ci-dots">
           {[1,2,3,4,5].map(n => (
-            <button key={n} className={`ci-dot ${scores[field] >= n ? 'filled' : ''}`}
+            <button key={n} className="ci-dot"
+              style={{ background: dotColor(n) }}
               onClick={() => setScores(s => ({ ...s, [field]: n }))} />
           ))}
-          <span className="ci-dot-label">{scores[field] <= 2 ? low : scores[field] >= 4 ? high : 'OK'}</span>
+          <span className="ci-dot-label" style={{ color: labelColor }}>{labelText}</span>
         </div>
       </div>
     )
@@ -538,7 +571,7 @@ function CheckInWidget({ onCheckinDone }) {
 
             <ScoreRow label="Leg freshness" field="legs" icon="🦵" low="Heavy" high="Fresh" />
             <ScoreRow label="Sleep quality" field="sleep" icon="😴" low="Poor" high="Great" />
-            <ScoreRow label="Life stress" field="stress" icon="⚡" low="Low" high="High" />
+            <ScoreRow label="Life stress" field="stress" icon="⚡" low="Low" high="High" invert={true} />
             <ScoreRow label="Motivation" field="motivation" icon="🔥" low="Low" high="Fired up" />
 
             <div className="fg" style={{ marginTop: 16 }}>
@@ -565,7 +598,7 @@ function CheckInWidget({ onCheckinDone }) {
 // AI COACH CHAT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function ChatSection({ activities, athlete, hevyWorkouts = [] }) {
+function ChatSection({ activities, athlete, hevyWorkouts = [], pendingCheckin, onPendingCheckinConsumed }) {
   const [messages, setMessages] = useState(getChats)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -619,12 +652,12 @@ function ChatSection({ activities, athlete, hevyWorkouts = [] }) {
   }))
 
   const weekMiles = (activities || [])
-    .filter(a => {
-      const d = new Date(a.start_date_local)
-      const mon = new Date(); mon.setDate(mon.getDate() - ((mon.getDay()+6)%7)); mon.setHours(0,0,0,0)
-      return d >= mon && RUN_TYPES.includes(a.type)
-    })
+    .filter(a => new Date(a.start_date_local) >= rolling7Start() && RUN_TYPES.includes(a.type))
     .reduce((s, a) => s + a.distance * METERS_TO_MILES, 0)
+
+  // Race Brain — pass its readiness signal to coach so they cannot contradict
+  const brain = getRaceBrain(activities || [], checkIn)
+  const brainReadiness = `${brain.readiness.label} (${brain.days} days to ${brain.nextRace?.name}). Focus: ${brain.focus}. Risk: ${brain.risk}.`
 
   const nextRace = upcomingRaces[0]
   const daysToRace = nextRace ? Math.ceil((new Date(nextRace.date) - today) / 86400000) : null
@@ -661,6 +694,7 @@ function ChatSection({ activities, athlete, hevyWorkouts = [] }) {
             niggleHistory,
             debriefMemory,
             currentPhase,
+            brainReadiness,
             weekMiles: weekMiles.toFixed(1),
             recentStrength: hevyWorkouts.slice(0, 5).map(w => ({
               date: w.date, title: w.title,
@@ -688,6 +722,50 @@ function ChatSection({ activities, athlete, hevyWorkouts = [] }) {
     setMessages([])
     saveChats([])
   }
+
+  // Auto-fire coach response when a new check-in is saved
+  useEffect(() => {
+    if (!pendingCheckin) return
+    const legs = pendingCheckin.legs
+    const sleep = pendingCheckin.sleep
+    const stress = pendingCheckin.stress
+    const motivation = pendingCheckin.motivation
+    const niggles = pendingCheckin.niggles
+    const feeling = pendingCheckin.feeling
+    const prompt = `I just did my check-in: legs ${legs}/5, sleep ${sleep}/5, stress ${stress}/5, motivation ${motivation}/5${niggles ? `, niggles: ${niggles}` : ''}${feeling ? `. Feeling: "${feeling}"` : ''}. How should I adapt my week based on this?`
+    // Slight delay so the tab switch animation completes
+    const t = setTimeout(() => {
+      const userMsg = { role: 'user', content: prompt }
+      const updated = [...getChats(), userMsg]
+      setMessages(updated)
+      saveChats(updated)
+      setLoading(true)
+      setError(null)
+      fetch('/api/coach-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: updated.map(m => ({ role: m.role, content: m.content })),
+          context: {
+            profile: getProfile(),
+            races: RACES.filter(r => new Date(r.date) > new Date()).map(r => ({ name: r.name, date: r.date, distanceMi: r.distanceMi, elevationFt: r.elevationFt })),
+            recentRuns: (activities || []).filter(a => RUN_TYPES.includes(a.type)).slice(0, 8).map(a => ({ date: a.start_date_local?.slice(0,10), name: a.name, miles: (a.distance * 0.000621371).toFixed(1), elevFt: Math.round((a.total_elevation_gain||0)*3.28084) })),
+            checkIn: pendingCheckin,
+            weekMiles: (activities || []).filter(a => new Date(a.start_date_local) >= rolling7Start() && RUN_TYPES.includes(a.type)).reduce((s,a) => s + a.distance * 0.000621371, 0).toFixed(1),
+            currentPhase: 'Check-in response',
+          },
+        }),
+      }).then(r => r.json()).then(data => {
+        if (data.error) throw new Error(data.error)
+        const reply = { role: 'assistant', content: data.reply }
+        const withReply = [...updated, reply]
+        setMessages(withReply)
+        saveChats(withReply)
+      }).catch(e => setError(e.message)).finally(() => setLoading(false))
+      if (onPendingCheckinConsumed) onPendingCheckinConsumed()
+    }, 400)
+    return () => clearTimeout(t)
+  }, [pendingCheckin])
 
   const STARTERS = [
     'Should I run today?',
@@ -1836,7 +1914,7 @@ function getCoachBrief(activities) {
   const days = daysUntil(nextRace.date)
   const runs = activities.filter(a => RUN_TYPES.includes(a.type))
   const weekMiles = runs
-    .filter(a => new Date(a.start_date_local) >= getMonday(0))
+    .filter(a => new Date(a.start_date_local) >= rolling7Start())
     .reduce((s, a) => s + a.distance * 0.000621371, 0)
   const monthMiles = runs
     .filter(a => new Date(a.start_date_local) >= new Date(now.getFullYear(), now.getMonth(), 1))
@@ -1891,7 +1969,12 @@ function getRaceBrain(activities, checkIn) {
   const days = daysUntil(nextRace.date)
   const runs = activities.filter(a => RUN_TYPES.includes(a.type))
 
-  // Recent training signal
+  // Rolling 7-day mileage
+  const rolling7Miles = runs
+    .filter(a => new Date(a.start_date_local) >= rolling7Start())
+    .reduce((s, a) => s + a.distance * 0.000621371, 0)
+
+  // Recent training signal (14 days)
   const twoWeeksAgo = new Date(Date.now() - 14 * 86400000)
   const recentRuns = runs.filter(a => new Date(a.start_date_local) >= twoWeeksAgo)
   const recentMiles = recentRuns.reduce((s, a) => s + a.distance * 0.000621371, 0)
@@ -1939,10 +2022,10 @@ function getRaceBrain(activities, checkIn) {
     ignore = 'Race-specific training for now'
   }
 
-  return { nextRace, days, readiness, focus, risk, ignore, recentMiles, recentRuns: recentRuns.length }
+  return { nextRace, days, readiness, focus, risk, ignore, recentMiles, rolling7Miles, recentRuns: recentRuns.length }
 }
 
-function BriefSection({ strava, profile }) {
+function BriefSection({ strava, profile, onCheckinSave }) {
   const { auth, activities, athlete, loading, connect, disconnect } = strava
   const brief = getCoachBrief(activities)
   const checkIn = getLatestCheckin()
@@ -1953,17 +2036,47 @@ function BriefSection({ strava, profile }) {
   const [showDetail, setShowDetail] = useState(false)
 
   const firstName = athlete?.firstname || profile?.name || 'Coach'
-  const weekMiles = runs
-    .filter(a => new Date(a.start_date_local) >= getMonday(0))
-    .reduce((s, a) => s + a.distance * 0.000621371, 0)
+  const weekMiles = brain.rolling7Miles  // rolling 7 days — same value coach sees
   const monthMiles = runs
     .filter(a => new Date(a.start_date_local) >= new Date(new Date().getFullYear(), new Date().getMonth(), 1))
     .reduce((s, a) => s + a.distance * 0.000621371, 0)
   const totalElev = runs.reduce((s, a) => s + (a.total_elevation_gain || 0), 0)
 
+  // Post-race recovery detection — Strava race type or manual race tag in last 10 days
+  const tenDaysAgo = new Date(Date.now() - 10 * 86400000)
+  const recentStravaRace = activities.find(a =>
+    a.workout_type === 1 && new Date(a.start_date_local) >= tenDaysAgo
+  )
+  const recentManualRace = getWorkouts().find(w =>
+    w.isRace && new Date(w.date) >= tenDaysAgo
+  )
+  const recentRaceEvent = recentStravaRace || recentManualRace
+  const recoveryDaysLeft = recentRaceEvent ? Math.max(0, 7 - Math.floor(
+    (Date.now() - new Date(recentRaceEvent.start_date_local || recentRaceEvent.date)) / 86400000
+  )) : 0
+
   return (
     <div>
       {showIntel && <RaceIntelHub race={nextRace} onClose={() => setShowIntel(false)} />}
+
+      {/* ── POST-RACE RECOVERY BANNER ── */}
+      {recentRaceEvent && recoveryDaysLeft > 0 && (
+        <div style={{
+          background: 'var(--card2)', border: '1.5px solid var(--mint)', borderRadius: 12,
+          padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 14,
+        }}>
+          <span style={{ fontSize: 24 }}>🛌</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>Recovery week — {recoveryDaysLeft} day{recoveryDaysLeft !== 1 ? 's' : ''} left</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+              You raced {recentRaceEvent.name || 'recently'}. Sleep, eat, walk. No sessions over 60 mins. Your fitness is safe.
+            </div>
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--mint)', fontWeight: 700, textAlign: 'right', flexShrink: 0 }}>
+            RECOVERY<br />MODE
+          </div>
+        </div>
+      )}
 
       {/* ── RACE BRAIN HERO ── */}
       <div className="rb-hero">
@@ -2013,7 +2126,7 @@ function BriefSection({ strava, profile }) {
       </div>
 
       {/* ── CHECK-IN ── */}
-      <CheckInWidget />
+      <CheckInWidget onCheckinSave={onCheckinSave} />
 
       {/* ── FULL BRIEF (expandable) ── */}
       {showDetail && (
@@ -2051,8 +2164,8 @@ function BriefSection({ strava, profile }) {
       {auth && (
         <div className="grid-4" style={{ marginBottom: 20 }}>
           <div className="stat-card">
-            <div className="stat-value" style={{ color: 'var(--orange)' }}>{weekMiles.toFixed(1)}</div>
-            <div className="stat-label">Miles this week</div>
+            <div className="stat-value" style={{ color: 'var(--mint)' }}>{weekMiles.toFixed(1)}</div>
+            <div className="stat-label">Miles (last 7 days)</div>
           </div>
           <div className="stat-card">
             <div className="stat-value">{monthMiles.toFixed(1)}</div>
@@ -2299,7 +2412,7 @@ function TrainingSection({ activities, hevyWorkouts = [], hevyKey = '', setHevyK
 
   function openAdd(dateStr) {
     setModal(dateStr)
-    setForm({ name: '', type: 'easy', miles: '', notes: '', date: dateStr })
+    setForm({ name: '', type: 'easy', miles: '', elevFt: '', notes: '', isRace: false, date: dateStr })
   }
 
   function saveWorkout() {
@@ -2381,9 +2494,9 @@ function TrainingSection({ activities, hevyWorkouts = [], hevyKey = '', setHevyK
                     </div>
                   ))}
                   {dayWks.map(w => (
-                    <div key={w.id} className={`ev ${typeColors[w.type] || 'ev-planned'}`} title={w.notes}
+                    <div key={w.id} className={`ev ${w.isRace ? 'ev-trail' : (typeColors[w.type] || 'ev-planned')}`} title={w.notes}
                       onDoubleClick={() => removeWorkout(w.id)}>
-                      ✓ {w.name}{w.miles ? ` ${w.miles}mi` : ''}
+                      {w.isRace ? '🏁' : '✓'} {w.name}{w.miles ? ` ${w.miles}mi` : ''}{w.elevFt ? ` ${w.elevFt}ft` : ''}
                     </div>
                   ))}
                   {dayHevy.map(w => (
@@ -2433,8 +2546,27 @@ function TrainingSection({ activities, hevyWorkouts = [], hevyKey = '', setHevyK
             </div>
           </div>
           <div className="fg">
+            <label className="fl">Elevation gain (ft)</label>
+            <input className="fi" type="number" value={form.elevFt} onChange={e => setForm(f => ({ ...f, elevFt: e.target.value }))} placeholder="1500" step="100" />
+          </div>
+          <div className="fg">
             <label className="fl">Notes</label>
-            <textarea className="ft" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Zone 2 effort, 1,500ft vert, poles practice…" />
+            <textarea className="ft" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Zone 2 effort, poles practice…" />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <button
+              type="button"
+              onClick={() => setForm(f => ({ ...f, isRace: !f.isRace }))}
+              style={{
+                padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                cursor: 'pointer', border: `1px solid ${form.isRace ? 'var(--mint)' : 'var(--border)'}`,
+                background: form.isRace ? 'var(--mint-dim)' : 'var(--card2)',
+                color: form.isRace ? 'var(--mint)' : 'var(--muted)',
+              }}
+            >
+              🏁 {form.isRace ? 'Tagged as race' : 'Mark as race'}
+            </button>
+            {form.isRace && <span style={{ fontSize: 11, color: 'var(--muted)' }}>Will appear in Season & race history</span>}
           </div>
           <div className="ma">
             <button className="btn btn-ghost" onClick={() => setModal(null)}>Cancel</button>
@@ -3005,6 +3137,7 @@ export default function App() {
   const [hevyWorkouts, setHevyWorkouts] = useState([])
   const [hevyLoading, setHevyLoading] = useState(false)
   const [theme, setThemeState] = useState(getTheme)
+  const [pendingCheckin, setPendingCheckin] = useState(null) // triggers coach auto-response
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -3081,12 +3214,12 @@ export default function App() {
       </header>
 
       <main>
-        {tab === 'brief'    && <BriefSection strava={strava} profile={profile} />}
+        {tab === 'brief'    && <BriefSection strava={strava} profile={profile} onCheckinSave={ci => { setPendingCheckin(ci); setTab('coach') }} />}
         {tab === 'season'   && <SeasonSection activities={strava.activities} stravaConnected={!!strava.auth} />}
         {tab === 'journal'  && <JournalSection />}
         {tab === 'training' && <TrainingSection activities={strava.activities} hevyWorkouts={hevyWorkouts} hevyKey={hevyKey} setHevyKey={setHevyKey} hevyLoading={hevyLoading} />}
         {tab === 'fuel'     && <FuelSection />}
-        {tab === 'coach'    && <ChatSection activities={strava.activities} athlete={strava.athlete} hevyWorkouts={hevyWorkouts} />}
+        {tab === 'coach'    && <ChatSection activities={strava.activities} athlete={strava.athlete} hevyWorkouts={hevyWorkouts} pendingCheckin={pendingCheckin} onPendingCheckinConsumed={() => setPendingCheckin(null)} />}
       </main>
 
       <nav className="bottom-nav">
