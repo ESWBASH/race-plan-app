@@ -17,7 +17,8 @@ export default async function handler(req, res) {
 
   const {
     profile, races, recentRuns, checkIn, checkinTrend,
-    niggleHistory, debriefMemory, currentPhase, brainReadiness, weekMiles, recentStrength
+    niggleHistory, debriefMemory, currentPhase, brainReadiness, weekMiles, recentStrength,
+    plannedCalendar
   } = context || {}
 
   const raceList = (races || [])
@@ -81,6 +82,10 @@ IMPORTANT: Your coaching response MUST be consistent with the Race Brain readine
 
 RECENT TRAINING (last 2 weeks):
   ${runList || 'No Strava data yet'}
+
+PLANNED TRAINING CALENDAR (next 3 weeks — sessions already scheduled):
+  ${(plannedCalendar || []).length ? plannedCalendar.join('\n  ') : 'No sessions planned yet'}
+IMPORTANT: When advising on upcoming training, always check this calendar first. If a session is already planned for a day, reference it rather than suggesting something different. If the calendar looks too heavy or too light given the athlete's current state, flag it.
 
 RECENT STRENGTH SESSIONS (from Hevy):
   ${strengthList}

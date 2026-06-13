@@ -743,6 +743,15 @@ function ChatSection({ activities, athlete, hevyWorkouts = [], hevyKey = '', pen
   const brain = getRaceBrain(activities || [], checkIn)
   const brainReadiness = `${brain.readiness.label} (${brain.days} days to ${brain.nextRace?.name}). Focus: ${brain.focus}. Risk: ${brain.risk}.`
 
+  // Planned calendar — next 3 weeks
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const threeWeeks = new Date(); threeWeeks.setDate(threeWeeks.getDate() + 21)
+  const threeWeeksStr = threeWeeks.toISOString().slice(0, 10)
+  const plannedCalendar = getWorkouts()
+    .filter(w => w.date >= todayStr && w.date <= threeWeeksStr)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map(w => `${w.date}: ${w.name}${w.miles ? ` — ${w.miles}mi` : ''}${w.elevFt ? `, ${w.elevFt}ft vert` : ''}${w.isRace ? ' [RACE]' : ''}${w.notes ? ` (${w.notes})` : ''}`)
+
   const nextRace = upcomingRaces[0]
   const daysToRace = nextRace ? Math.ceil((new Date(nextRace.date) - today) / 86400000) : null
   const currentPhase = nextRace
@@ -780,6 +789,7 @@ function ChatSection({ activities, athlete, hevyWorkouts = [], hevyKey = '', pen
             currentPhase,
             brainReadiness,
             weekMiles: weekMiles.toFixed(1),
+            plannedCalendar,
             recentStrength: hevyWorkouts.slice(0, 5).map(w => ({
               date: w.date, title: w.title,
               exercises: w.exercises.map(e => e.name).join(', '),
@@ -837,6 +847,10 @@ function ChatSection({ activities, athlete, hevyWorkouts = [], hevyKey = '', pen
             checkIn: pendingCheckin,
             weekMiles: (activities || []).filter(a => new Date(a.start_date_local) >= rolling7Start() && RUN_TYPES.includes(a.type)).reduce((s,a) => s + a.distance * 0.000621371, 0).toFixed(1),
             currentPhase: 'Check-in response',
+            plannedCalendar: getWorkouts()
+              .filter(w => { const t = new Date().toISOString().slice(0,10); const e = new Date(); e.setDate(e.getDate()+21); return w.date >= t && w.date <= e.toISOString().slice(0,10) })
+              .sort((a,b) => a.date.localeCompare(b.date))
+              .map(w => `${w.date}: ${w.name}${w.miles ? ` — ${w.miles}mi` : ''}${w.isRace ? ' [RACE]' : ''}`),
           },
         }),
       }).then(r => r.json()).then(data => {
