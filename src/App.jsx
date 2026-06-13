@@ -3027,7 +3027,7 @@ function TrainingSection({ activities, hevyWorkouts = [], hevyKey = '', setHevyK
           {hevyKey && <span>🟣 Hevy strength</span>}
           <span style={{ fontStyle: 'italic' }}>Double-click planned workout to remove</span>
         </div>
-      </div>
+      </div>}
 
       {/* Add modal */}
       <div className={`overlay ${modal ? 'open' : ''}`}>
