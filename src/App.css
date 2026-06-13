@@ -2347,3 +2347,163 @@ main { padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14
   .rb-readiness-label { font-size: 14px; }
   .rb-actions { flex-wrap: wrap; }
 }
+
+/* ═══════════════════════════════════════
+   PROACTIVE NUDGE CARDS
+   ═══════════════════════════════════════ */
+
+.nudge-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--muted);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  cursor: default;
+  transition: border-color 0.15s;
+}
+.nudge-card.nudge-mint { border-left-color: var(--mint); cursor: pointer; }
+.nudge-card.nudge-race { cursor: pointer; }
+.nudge-card:hover.nudge-race, .nudge-card:hover.nudge-mint { opacity: 0.85; }
+.nudge-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+.nudge-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.nudge-body  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+/* ═══════════════════════════════════════
+   SHOE MILEAGE TRACKER
+   ═══════════════════════════════════════ */
+
+.shoe-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.shoe-name { font-size: 13px; color: var(--text); min-width: 130px; flex-shrink: 0; }
+.shoe-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.shoe-bar { height: 100%; border-radius: 3px; transition: width 0.4s; }
+.shoe-miles { font-size: 12px; color: var(--muted); min-width: 52px; text-align: right; flex-shrink: 0; }
+
+/* ═══════════════════════════════════════
+   SUB-TAB NAV (inside Races / Train)
+   ═══════════════════════════════════════ */
+
+.subtab-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+.subtab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+.subtab-btn.active {
+  color: var(--text);
+  border-bottom-color: var(--mint);
+}
+.subtab-btn:hover:not(.active) { color: var(--text); }
+
+/* ═══════════════════════════════════════
+   SEASON — RACE RESULT CARDS (#45)
+   ═══════════════════════════════════════ */
+
+.result-card .year-race-color-bar { background: var(--mint) !important; }
+
+.result-finish-time {
+  text-align: right;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+.result-time-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--mint);
+  line-height: 1.1;
+}
+.result-time-lbl {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.result-highlight {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: var(--mint-dim);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+}
+
+/* ═══════════════════════════════════════
+   PWA INSTALL BANNER
+   ═══════════════════════════════════════ */
+
+.pwa-banner {
+  position: fixed;
+  bottom: 70px; /* above bottom nav */
+  left: 12px;
+  right: 12px;
+  background: var(--card2);
+  border: 1px solid var(--mint);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 900;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+.pwa-banner-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.pwa-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+.pwa-banner-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.pwa-banner-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.pwa-banner-install {
+  background: var(--mint);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.pwa-banner-dismiss {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  flex-shrink: 0;
+  line-height: 1;
+}

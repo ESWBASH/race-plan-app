@@ -230,7 +230,7 @@ const COMMUNITY_RECS = [
     timing: 'September',
     spineValue: 4,
     tags: ['Women-friendly', 'Well-stocked', 'Multiple distances', 'Scenic'],
-    hiveSays: "Strong community consensus. 'Ladies only toilets with products we all need, pit stops well stocked almost every 10 miles.' Lisa Leavett: 'Mince and tatties at the 100km checkpoint was the food of the gods.' Multiple runners plan to return. Generous 32h cutoff.",
+    hiveSays: "Strong community consensus. 'Ladies only toilets with products we all need, pit stops well stocked almost every 10 miles.' Lisa: 'Mince and tatties at the 100km checkpoint was the food of the gods.' Multiple runners plan to return. Generous 32h cutoff.",
     recommenders: 4,
   },
   {
@@ -278,7 +278,7 @@ const COMMUNITY_RECS = [
     timing: 'April',
     spineValue: 4,
     tags: ['Night movement', '25 checkpoints', 'Old school', 'Boggy'],
-    hiveSays: "Jo H: 'Old school scouts. Tent in a field with tea and biscuits at checkpoints.' Not glamorous but excellent nav and terrain practice. Sue: 'Boggy. Great route though.' The 25 checkpoints teach you checkpoint management under pressure.",
+    hiveSays: "Jo: 'Old school scouts. Tent in a field with tea and biscuits at checkpoints.' Not glamorous but excellent nav and terrain practice. Sue: 'Boggy. Great route though.' The 25 checkpoints teach you checkpoint management under pressure.",
     recommenders: 2,
   },
   {
@@ -601,6 +601,7 @@ function CheckInWidget({ onCheckinDone, onCheckinSave }) {
 function HevyWorkoutButton({ workout, apiKey }) {
   const [state, setState] = useState('idle') // idle | loading | done | error
   const [errMsg, setErrMsg] = useState('')
+  const [calSaved, setCalSaved] = useState(false)
 
   async function sendToHevy() {
     setState('loading')
@@ -618,11 +619,23 @@ function HevyWorkoutButton({ workout, apiKey }) {
     }
   }
 
-  if (state === 'done') return (
-    <div className="hevy-btn-row">
-      <span className="hevy-btn-done">✓ Added to Hevy — open the app to start</span>
-    </div>
-  )
+  // #41: Save coach workout to training calendar
+  function saveToCalendar() {
+    const today = new Date().toISOString().slice(0, 10)
+    const existing = getWorkouts()
+    const w = {
+      id: `coach_${Date.now()}`,
+      date: today,
+      name: workout.title,
+      type: 'rest',
+      miles: '',
+      notes: workout.exercises.map(e => `${e.name} ${e.sets}×${e.reps}`).join(', '),
+      isRace: false,
+    }
+    saveWorkouts([...existing, w])
+    setCalSaved(true)
+  }
+
   if (state === 'error') return (
     <div className="hevy-btn-row">
       <span style={{ fontSize: 11, color: 'var(--red)' }}>Hevy error: {errMsg}</span>
@@ -631,8 +644,15 @@ function HevyWorkoutButton({ workout, apiKey }) {
 
   return (
     <div className="hevy-btn-row">
-      <button className="hevy-send-btn" onClick={sendToHevy} disabled={state === 'loading'}>
-        {state === 'loading' ? '…' : '🏋️ Add to Hevy'}
+      {state !== 'done' && (
+        <button className="hevy-send-btn" onClick={sendToHevy} disabled={state === 'loading'}>
+          {state === 'loading' ? '…' : '🏋️ Add to Hevy'}
+        </button>
+      )}
+      {state === 'done' && <span className="hevy-btn-done">✓ In Hevy</span>}
+      <button className="hevy-send-btn" onClick={saveToCalendar} disabled={calSaved}
+        style={{ background: calSaved ? 'var(--mint-dim)' : undefined, color: calSaved ? 'var(--mint)' : undefined }}>
+        {calSaved ? '✓ In calendar' : '📅 Add to calendar'}
       </button>
       <div className="hevy-workout-preview">
         {workout.exercises.map((e, i) => (
@@ -1254,22 +1274,25 @@ function SeasonSection({ activities = [], stravaConnected = false }) {
               {qStravaRaces.map(r => {
                 const hrs = r.movingTime ? Math.floor(r.movingTime / 3600) : null
                 const mins = r.movingTime ? Math.floor((r.movingTime % 3600) / 60) : null
+                const finishTime = hrs !== null ? `${hrs}h ${String(mins).padStart(2,'0')}m` : null
                 return (
-                  <div key={r.id} className="year-race-row past">
-                    <div className="year-race-color-bar" style={{ background: 'var(--purple)' }} />
+                  <div key={r.id} className="year-race-row past result-card">
+                    <div className="year-race-color-bar" style={{ background: 'var(--mint)' }} />
                     <div className="year-race-body">
                       <div className="year-race-top">
-                        <div>
+                        <div style={{ flex: 1 }}>
                           <div className="year-race-name">{r.name}</div>
-                          <div className="year-race-meta">
-                            {r.distanceMi}mi · {(r.elevationFt/1000).toFixed(1)}k ft
-                            {hrs !== null ? ` · ${hrs}h${mins}m` : ''}
+                          <div className="year-race-meta">{r.distanceMi}mi · {(r.elevationFt/1000).toFixed(1)}k ft vert · {fmtDate(r.date)}</div>
+                        </div>
+                        {finishTime && (
+                          <div className="result-finish-time">
+                            <div className="result-time-val">{finishTime}</div>
+                            <div className="result-time-lbl">finish</div>
                           </div>
-                        </div>
-                        <div className="year-race-badge-col">
-                          <div className="year-race-date">{fmtDate(r.date)}</div>
-                          <div className="year-race-status done" style={{ background: 'var(--purple-dim)', color: 'var(--purple)' }}>Strava ✓</div>
-                        </div>
+                        )}
+                        {!finishTime && (
+                          <div className="year-race-status done" style={{ background: 'var(--mint-dim)', color: 'var(--mint)' }}>✓ Done</div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1296,12 +1319,20 @@ function SeasonSection({ activities = [], stravaConnected = false }) {
                           </div>
                         </div>
                       </div>
-                      {stravaResult && (
-                        <div className="year-race-strava">
-                          <span className="year-race-strava-icon">🟠</span>
-                          <span>{(stravaResult.distance * 0.000621371).toFixed(1)}mi · {stravaResult.name} · {Math.floor(stravaResult.moving_time/3600)}h{Math.floor((stravaResult.moving_time%3600)/60)}m</span>
-                        </div>
-                      )}
+                      {stravaResult && (() => {
+                        const rHrs = Math.floor(stravaResult.moving_time / 3600)
+                        const rMins = Math.floor((stravaResult.moving_time % 3600) / 60)
+                        return (
+                          <div className="year-race-strava result-highlight">
+                            <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--mint)' }}>
+                              {rHrs}h {String(rMins).padStart(2,'0')}m
+                            </span>
+                            <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 6 }}>
+                              · {(stravaResult.distance * 0.000621371).toFixed(1)}mi on Strava
+                            </span>
+                          </div>
+                        )
+                      })()}
                       {!stravaConnected && isPastRace && (
                         <div className="year-race-strava muted">Connect Strava to see your result</div>
                       )}
@@ -1873,6 +1904,155 @@ function useStrava() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// PROACTIVE NUDGES — computed once, rendered on Home
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function getNudges(activities, checkIn, nextRace, days) {
+  const nudges = []
+  const runs = (activities || []).filter(a => ['Run','TrailRun','Hike','VirtualRun'].includes(a.type))
+
+  // ── Running silence (5+ days) ──
+  if (runs.length > 0) {
+    const lastRun = new Date(runs[0].start_date_local)
+    const daysSince = Math.floor((Date.now() - lastRun) / 86400000)
+    if (daysSince >= 5) {
+      nudges.push({
+        type: 'silence', icon: '🔇', color: 'var(--yellow)',
+        title: `${daysSince} days since your last run`,
+        body: `Last: "${runs[0].name}" on ${new Date(runs[0].start_date_local).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}. Resting deliberately, or drifting?`,
+      })
+    }
+  } else {
+    nudges.push({ type: 'no-data', icon: '📡', color: 'var(--blue)', title: 'No Strava data yet', body: 'Connect Strava so your coach can see what you\'ve been doing.' })
+  }
+
+  // ── Race week ──
+  if (days <= 7 && days > 0 && nextRace) {
+    nudges.push({
+      type: 'race-week', icon: '🏁', color: 'var(--mint)',
+      title: `Race week — ${nextRace.name} in ${days} day${days !== 1 ? 's' : ''}`,
+      body: `Short shakeout runs only. No new sessions. Kit check tonight — poles, waterproof, headtorch, gels. The work is done.`,
+    })
+  }
+
+  // ── Final sharpen (8–21 days) ──
+  if (days > 7 && days <= 21 && nextRace) {
+    nudges.push({
+      type: 'taper', icon: '📉', color: 'var(--orange)',
+      title: `${days} days to ${nextRace.shortName || nextRace.name} — taper territory`,
+      body: `Volume drops 30% now. One more quality long run, then protect what you\'ve built. No heroics.`,
+    })
+  }
+
+  // ── Load spike ──
+  const thisWeekStart = rolling7Start()
+  const lastWeekStart = new Date(thisWeekStart); lastWeekStart.setDate(lastWeekStart.getDate() - 7)
+  const thisWeekMi = runs.filter(a => new Date(a.start_date_local) >= thisWeekStart)
+    .reduce((s,a) => s + a.distance * 0.000621371, 0)
+  const lastWeekMi = runs.filter(a => {
+    const d = new Date(a.start_date_local); return d >= lastWeekStart && d < thisWeekStart
+  }).reduce((s,a) => s + a.distance * 0.000621371, 0)
+  if (lastWeekMi > 8 && thisWeekMi > lastWeekMi * 1.5) {
+    nudges.push({
+      type: 'spike', icon: '📈', color: 'var(--red)',
+      title: `Load spike — ${thisWeekMi.toFixed(0)} mi this week (+${Math.round((thisWeekMi/lastWeekMi-1)*100)}%)`,
+      body: `Big jump in volume. Prioritise sleep, nutrition, and an extra easy day. Injury risk increases with sudden spikes.`,
+    })
+  }
+
+  // ── Declining check-in trend ──
+  const allCheckins = getCheckins()
+  if (allCheckins.length >= 3) {
+    const recent3 = allCheckins.slice(0, 3)
+    const avgMot = recent3.reduce((s,c)=>s+(c.motivation||3),0)/3
+    const avgLegs = recent3.reduce((s,c)=>s+(c.legs||3),0)/3
+    if (avgMot < 2.5 && (checkIn?.motivation || 3) <= 2) {
+      nudges.push({ type: 'mood', icon: '💙', color: 'var(--blue)', title: 'Motivation has been low for 3 weeks', body: 'Ask your coach about it — low motivation sustained is a signal, not a failure.' })
+    } else if (avgLegs < 2.5 && (checkIn?.legs || 3) <= 2) {
+      nudges.push({ type: 'fatigue', icon: '🦵', color: 'var(--red)', title: 'Persistent leg fatigue', body: 'Three weeks of heavy legs may mean accumulated fatigue. Consider an easy week.' })
+    }
+  }
+
+  return nudges.slice(0, 3) // cap at 3
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SHOE MILEAGE TRACKER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function ShoeTracker({ activities, token }) {
+  const [gear, setGear] = useState({})
+  const [fetching, setFetching] = useState(false)
+
+  // Group miles by gear_id
+  const gearMiles = {}
+  ;(activities || []).filter(a => a.gear_id).forEach(a => {
+    gearMiles[a.gear_id] = (gearMiles[a.gear_id] || 0) + a.distance * 0.000621371
+  })
+
+  const ids = Object.keys(gearMiles)
+  const maxMiles = Math.max(...Object.values(gearMiles), 1)
+
+  useEffect(() => {
+    if (!token || !ids.length) return
+    const toFetch = ids.filter(id => !gear[id])
+    if (!toFetch.length) return
+    setFetching(true)
+    Promise.all(toFetch.map(id =>
+      fetch(`https://www.strava.com/api/v3/gear/${id}`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json()).then(d => ({ id, name: d.name || d.description || 'Unknown shoe' })).catch(() => ({ id, name: 'Unknown shoe' }))
+    )).then(results => {
+      const map = {}; results.forEach(r => { map[r.id] = r.name }); setGear(g => ({ ...g, ...map }))
+    }).finally(() => setFetching(false))
+  }, [token, ids.join(',')])
+
+  if (!ids.length) return null
+
+  const sorted = Object.entries(gearMiles).sort((a,b) => b[1] - a[1])
+
+  return (
+    <div className="card" style={{ marginBottom: 20 }}>
+      <div className="card-title">👟 Shoe Mileage {fetching && <span style={{fontSize:11,color:'var(--muted)',fontWeight:400}}>Loading…</span>}</div>
+      {sorted.map(([id, miles]) => (
+        <div key={id} className="shoe-row">
+          <div className="shoe-name">{gear[id] || '…'}</div>
+          <div className="shoe-bar-wrap">
+            <div className="shoe-bar" style={{ width: `${(miles/maxMiles)*100}%`,
+              background: miles > 400 ? 'var(--red)' : miles > 250 ? 'var(--yellow)' : 'var(--mint)' }} />
+          </div>
+          <div className="shoe-miles">{Math.round(miles)} mi</div>
+        </div>
+      ))}
+      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>Red = replace soon (400+ mi) · Based on last 12 months</div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CALENDAR ICS EXPORT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function exportToICS(workouts) {
+  const esc = s => (s || '').replace(/[,;\\]/g, c => '\\' + c).replace(/\n/g, '\\n')
+  const lines = [
+    'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//ClaudeCoach//Ultra Training//EN','CALSCALE:GREGORIAN',
+  ]
+  workouts.filter(w => w.name && w.date).forEach(w => {
+    const dt = w.date.replace(/-/g, '')
+    const nextDay = new Date(w.date); nextDay.setDate(nextDay.getDate() + 1)
+    const dtEnd = nextDay.toISOString().slice(0,10).replace(/-/g,'')
+    const summary = esc(`${w.name}${w.miles ? ` — ${w.miles}mi` : ''}${w.isRace ? ' 🏁' : ''}`)
+    const desc = esc(w.notes || '')
+    lines.push('BEGIN:VEVENT',`UID:${w.id}@claudecoach`,`DTSTART;VALUE=DATE:${dt}`,`DTEND;VALUE=DATE:${dtEnd}`,`SUMMARY:${summary}`,desc ? `DESCRIPTION:${desc}` : '','END:VEVENT')
+  })
+  lines.push('END:VCALENDAR')
+  const blob = new Blob([lines.filter(Boolean).join('\r\n')], { type: 'text/calendar;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a'); a.href = url; a.download = 'claudecoach-training.ics'
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // COACH'S BRIEF
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2240,7 +2420,7 @@ function getRaceBrain(activities, checkIn) {
   return { nextRace, days, readiness, focus, risk, ignore, recentMiles, rolling7Miles, recentRuns: recentRuns.length }
 }
 
-function BriefSection({ strava, profile, onCheckinSave }) {
+function BriefSection({ strava, profile, onCheckinSave, onNavigate }) {
   const { auth, activities, athlete, loading, connect, disconnect } = strava
   const brief = getCoachBrief(activities)
   const checkIn = getLatestCheckin()
@@ -2249,6 +2429,17 @@ function BriefSection({ strava, profile, onCheckinSave }) {
   const runs = activities.filter(a => RUN_TYPES.includes(a.type))
   const [showIntel, setShowIntel] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
+
+  // Proactive nudges
+  const nudges = getNudges(activities, checkIn, nextRace, days)
+
+  // Post-race debrief prompt — any planned race passed in last 5 days
+  const today = new Date()
+  const recentlyCompletedRace = RACES.find(r => {
+    const d = new Date(r.date)
+    const daysSince = (today - d) / 86400000
+    return daysSince >= 0 && daysSince <= 5
+  })
 
   const firstName = athlete?.firstname || profile?.name || 'Coach'
   const weekMiles = brain.rolling7Miles  // rolling 7 days — same value coach sees
@@ -2292,6 +2483,44 @@ function BriefSection({ strava, profile, onCheckinSave }) {
           </div>
         </div>
       )}
+
+      {/* ── POST-RACE DEBRIEF PROMPT ── */}
+      {recentlyCompletedRace && (
+        <div className="nudge-card nudge-mint" onClick={() => onNavigate && onNavigate('journal')}>
+          <span className="nudge-icon">✍️</span>
+          <div style={{ flex: 1 }}>
+            <div className="nudge-title">Time to debrief — how did {recentlyCompletedRace.shortName} go?</div>
+            <div className="nudge-body">Write while it's fresh. Every lesson from {recentlyCompletedRace.name} goes into your Ultra Memory. Tap to open Journal →</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── RACE DAY PREP CARD (≤30 days) ── */}
+      {nextRace?.intel && days > 0 && days <= 30 && !recentlyCompletedRace && (
+        <div className="nudge-card nudge-race" style={{ borderColor: nextRace.color }} onClick={() => setShowIntel(true)}>
+          <span className="nudge-icon">{days <= 7 ? '🏁' : '📋'}</span>
+          <div style={{ flex: 1 }}>
+            <div className="nudge-title">{days <= 7 ? `Race week — ${days}d to ${nextRace.shortName}` : `${days} days — review your ${nextRace.shortName} plan`}</div>
+            <div className="nudge-body">
+              {days <= 7
+                ? `Pacing: ${nextRace.intel.pacingSections[0]?.effort} for the first ${nextRace.intel.pacingSections[0]?.section}. Target: ${nextRace.intel.targetFinish?.realistic}. Open Race Intel to review.`
+                : `Aid stations, pacing splits, fuel plan, kit list — everything you need in one place. Tap to open.`}
+            </div>
+          </div>
+          <span style={{ fontSize: 11, color: nextRace.color, fontWeight: 700, flexShrink: 0 }}>Intel →</span>
+        </div>
+      )}
+
+      {/* ── PROACTIVE NUDGES ── */}
+      {nudges.map((n, i) => (
+        <div key={i} className="nudge-card" style={{ borderLeftColor: n.color }}>
+          <span className="nudge-icon">{n.icon}</span>
+          <div style={{ flex: 1 }}>
+            <div className="nudge-title">{n.title}</div>
+            <div className="nudge-body">{n.body}</div>
+          </div>
+        </div>
+      ))}
 
       {/* ── RACE BRAIN HERO ── */}
       <div className="rb-hero">
@@ -2396,6 +2625,9 @@ function BriefSection({ strava, profile, onCheckinSave }) {
           </div>
         </div>
       )}
+
+      {/* ── SHOE MILEAGE ── */}
+      {auth && <ShoeTracker activities={activities} token={auth.access_token} />}
 
       {/* ── RACE CALENDAR ── */}
       <div className="card" style={{ marginBottom: 20 }}>
@@ -2595,11 +2827,81 @@ function RacesSection() {
 // SECTION: TRAINING
 // ═══════════════════════════════════════════════════════════════════════════════
 
+function FourWeekView({ workouts, activities }) {
+  const today = new Date()
+  const runs = activities.filter(a => ['Run','TrailRun','Hike','VirtualRun'].includes(a.type))
+  const weeks = []
+  for (let w = 0; w < 4; w++) {
+    const mon = getMonday(w)
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+    const weekDays = []
+    for (let d = 0; d < 7; d++) {
+      const day = new Date(mon); day.setDate(mon.getDate() + d)
+      const ds = isoDate(day)
+      weekDays.push({
+        date: ds,
+        label: day.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }),
+        isToday: ds === isoDate(today),
+        planned: workouts.filter(w => w.date === ds),
+        actual: runs.filter(a => a.start_date_local?.slice(0,10) === ds),
+      })
+    }
+    const weekMi = weekDays.reduce((s, d) => s + d.actual.reduce((ss, a) => ss + a.distance * 0.000621371, 0), 0)
+    const plannedMi = weekDays.reduce((s, d) => s + d.planned.reduce((ss, w) => ss + parseFloat(w.miles || 0), 0), 0)
+    weeks.push({ label: `${mon.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${sun.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}`, days: weekDays, weekMi, plannedMi, isCurrentWeek: w === 0 })
+  }
+
+  const typeColor = { easy: 'var(--blue)', long: 'var(--mint)', trail: 'var(--mint)', interval: 'var(--yellow)', rest: 'var(--muted)' }
+
+  return (
+    <div className="four-week-grid">
+      {weeks.map((week, wi) => (
+        <div key={wi} className={`fw-week ${week.isCurrentWeek ? 'current' : ''}`}>
+          <div className="fw-week-header">
+            <span className="fw-week-label">{week.isCurrentWeek ? 'This week' : `Week ${wi + 1}`} · {week.label}</span>
+            <span className="fw-week-miles">
+              {week.weekMi > 0 ? <span style={{color:'var(--mint)'}}>{week.weekMi.toFixed(0)} mi done</span> : null}
+              {week.plannedMi > 0 && week.weekMi === 0 && <span style={{color:'var(--muted)'}}>{week.plannedMi.toFixed(0)} mi planned</span>}
+            </span>
+          </div>
+          {week.days.filter(d => d.planned.length > 0 || d.actual.length > 0).map(d => (
+            <div key={d.date} className={`fw-day ${d.isToday ? 'today' : ''}`}>
+              <div className="fw-day-label">{d.label}</div>
+              <div className="fw-day-sessions">
+                {d.actual.map((a, i) => (
+                  <div key={i} className="fw-session actual">
+                    {a.type === 'TrailRun' ? '🏔' : '🏃'} {(a.distance*0.000621371).toFixed(1)}mi
+                    {a.total_elevation_gain > 50 ? ` · ${Math.round(a.total_elevation_gain * 3.28084)}ft` : ''}
+                  </div>
+                ))}
+                {d.actual.length === 0 && d.planned.map((p, i) => (
+                  <div key={i} className="fw-session planned" style={{borderLeftColor: typeColor[p.type] || 'var(--muted)'}}>
+                    {p.isRace ? '🏁' : ''} {p.name}{p.miles ? ` · ${p.miles}mi` : ''}
+                  </div>
+                ))}
+                {d.actual.length > 0 && d.planned.length > 0 && d.planned.map((p, i) => (
+                  <div key={i} className="fw-session planned dim">
+                    <span style={{textDecoration:'line-through',opacity:0.4}}>{p.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          {week.days.every(d => d.planned.length === 0 && d.actual.length === 0) && (
+            <div style={{fontSize:12, color:'var(--muted)', padding:'8px 12px'}}>No sessions planned this week</div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function TrainingSection({ activities, hevyWorkouts = [], hevyKey = '', setHevyKey, hevyLoading = false }) {
   const [weekOffset, setWeekOffset] = useState(0)
   const [workouts, setWorkouts] = useState(getWorkouts())
   const [modal, setModal] = useState(null)
   const [form, setForm] = useState({ name: '', type: 'easy', miles: '', notes: '' })
+  const [calView, setCalView] = useState('week') // 'week' | '4week'
 
   // Auto-seed plan if calendar is empty
   useEffect(() => {
@@ -2657,12 +2959,20 @@ function TrainingSection({ activities, hevyWorkouts = [], hevyKey = '', setHevyK
         <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 12 }}>🏋️ Syncing Hevy…</div>
       )}
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <button className="btn btn-orange" onClick={loadPlan} style={{ fontSize: 13 }}>📅 Load Training Plan</button>
-        <span style={{ fontSize: 12, color: 'var(--muted)', alignSelf: 'center' }}>Auto-schedules your Tittesworth taper + 5 Valleys build</span>
+        <button className="btn btn-ghost" onClick={() => exportToICS(workouts)} style={{ fontSize: 13 }}>
+          📆 Export to Calendar
+        </button>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+          <button className={`btn ${calView === 'week' ? 'btn-orange' : 'btn-ghost'}`} style={{ fontSize: 12, padding: '6px 12px' }} onClick={() => setCalView('week')}>Week</button>
+          <button className={`btn ${calView === '4week' ? 'btn-orange' : 'btn-ghost'}`} style={{ fontSize: 12, padding: '6px 12px' }} onClick={() => setCalView('4week')}>4 weeks</button>
+        </div>
       </div>
 
-      <div className="card">
+      {calView === '4week' && <FourWeekView workouts={workouts} activities={activities} />}
+
+      {calView === 'week' && <div className="card">
         <div className="week-nav">
           <button className="week-nav-btn" onClick={() => setWeekOffset(o => o - 1)}>← Prev</button>
           <span className="week-label">
@@ -3313,16 +3623,46 @@ function JournalSection() {
   )
 }
 
+// ── Combined Races tab (Season + Journal) ──
+function RacesTab({ activities, stravaConnected }) {
+  const [sub, setSub] = useState('season')
+  return (
+    <div>
+      <div className="subtab-row">
+        <button className={`subtab-btn ${sub === 'season' ? 'active' : ''}`} onClick={() => setSub('season')}>🏔 Season</button>
+        <button className={`subtab-btn ${sub === 'journal' ? 'active' : ''}`} onClick={() => setSub('journal')}>📖 Journal</button>
+      </div>
+      {sub === 'season' && <SeasonSection activities={activities} stravaConnected={stravaConnected} />}
+      {sub === 'journal' && <JournalSection />}
+    </div>
+  )
+}
+
+// ── Combined Train tab (Training + Strength + Fuel) ──
+function TrainTab({ activities, hevyWorkouts, hevyKey, setHevyKey, hevyLoading }) {
+  const [sub, setSub] = useState('calendar')
+  return (
+    <div>
+      <div className="subtab-row">
+        <button className={`subtab-btn ${sub === 'calendar' ? 'active' : ''}`} onClick={() => setSub('calendar')}>📅 Calendar</button>
+        <button className={`subtab-btn ${sub === 'strength' ? 'active' : ''}`} onClick={() => setSub('strength')}>💪 Strength</button>
+        <button className={`subtab-btn ${sub === 'fuel' ? 'active' : ''}`} onClick={() => setSub('fuel')}>⚡ Fuel</button>
+      </div>
+      {sub === 'calendar' && <TrainingSection activities={activities} hevyWorkouts={hevyWorkouts} hevyKey={hevyKey} setHevyKey={setHevyKey} hevyLoading={hevyLoading} />}
+      {sub === 'strength' && <StrengthSection />}
+      {sub === 'fuel' && <FuelSection />}
+    </div>
+  )
+}
+
 const TABS = [
-  { id: 'brief',    label: 'Home' },
-  { id: 'season',   label: 'Season' },
-  { id: 'journal',  label: 'Journal' },
-  { id: 'training', label: 'Training' },
-  { id: 'fuel',     label: 'Fuel' },
-  { id: 'coach',    label: 'Coach' },
+  { id: 'brief',  label: 'Home' },
+  { id: 'races',  label: 'Races' },
+  { id: 'train',  label: 'Train' },
+  { id: 'coach',  label: 'Coach' },
 ]
 
-const TAB_ICONS = { brief: '🏠', season: '🏔', journal: '📖', training: '📅', fuel: '⚡', coach: '💬' }
+const TAB_ICONS = { brief: '🏠', races: '🏔', train: '📅', coach: '💬' }
 
 function getHevyKey() { try { return localStorage.getItem('cc_hevy_key') || '' } catch { return '' } }
 
@@ -3338,11 +3678,40 @@ export default function App() {
   const [theme, setThemeState] = useState(getTheme)
   const [pendingCheckin, setPendingCheckin] = useState(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [installPrompt, setInstallPrompt] = useState(null)
+  const [showInstallBanner, setShowInstallBanner] = useState(false)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     try { localStorage.setItem('cc_theme', theme) } catch {}
   }, [theme])
+
+  // PWA install prompt
+  useEffect(() => {
+    const dismissed = localStorage.getItem('cc_install_dismissed')
+    if (dismissed) return
+    const handler = e => {
+      e.preventDefault()
+      setInstallPrompt(e)
+      setShowInstallBanner(true)
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  function handleInstall() {
+    if (!installPrompt) return
+    installPrompt.prompt()
+    installPrompt.userChoice.then(() => {
+      setShowInstallBanner(false)
+      setInstallPrompt(null)
+    })
+  }
+
+  function dismissInstall() {
+    setShowInstallBanner(false)
+    try { localStorage.setItem('cc_install_dismissed', '1') } catch {}
+  }
 
   function toggleTheme() {
     setThemeState(t => t === 'dark' ? 'light' : 'dark')
@@ -3414,6 +3783,19 @@ export default function App() {
         </div>
       </header>
 
+      {/* ── PWA INSTALL BANNER ── */}
+      {showInstallBanner && (
+        <div className="pwa-banner">
+          <span className="pwa-banner-icon">⚡</span>
+          <div className="pwa-banner-text">
+            <div className="pwa-banner-title">Add ClaudeCoach to your home screen</div>
+            <div className="pwa-banner-sub">Works offline · No app store needed</div>
+          </div>
+          <button className="pwa-banner-install" onClick={handleInstall}>Install</button>
+          <button className="pwa-banner-dismiss" onClick={dismissInstall}>✕</button>
+        </div>
+      )}
+
       {settingsOpen && (
         <div className="settings-overlay" onClick={() => setSettingsOpen(false)}>
           <div className="settings-drawer" onClick={e => e.stopPropagation()}>
@@ -3453,12 +3835,12 @@ export default function App() {
       )}
 
       <main>
-        {tab === 'brief'    && <BriefSection strava={strava} profile={profile} onCheckinSave={ci => { setPendingCheckin(ci); setTab('coach') }} />}
-        {tab === 'season'   && <SeasonSection activities={strava.activities} stravaConnected={!!strava.auth} />}
-        {tab === 'journal'  && <JournalSection />}
-        {tab === 'training' && <TrainingSection activities={strava.activities} hevyWorkouts={hevyWorkouts} hevyKey={hevyKey} setHevyKey={setHevyKey} hevyLoading={hevyLoading} />}
-        {tab === 'fuel'     && <FuelSection />}
-        {tab === 'coach'    && <ChatSection activities={strava.activities} athlete={strava.athlete} hevyWorkouts={hevyWorkouts} hevyKey={hevyKey} pendingCheckin={pendingCheckin} onPendingCheckinConsumed={() => setPendingCheckin(null)} />}
+        {tab === 'brief' && <BriefSection strava={strava} profile={profile}
+          onCheckinSave={ci => { setPendingCheckin(ci); setTab('coach') }}
+          onNavigate={t => setTab(t)} />}
+        {tab === 'races' && <RacesTab activities={strava.activities} stravaConnected={!!strava.auth} />}
+        {tab === 'train' && <TrainTab activities={strava.activities} hevyWorkouts={hevyWorkouts} hevyKey={hevyKey} setHevyKey={setHevyKey} hevyLoading={hevyLoading} />}
+        {tab === 'coach' && <ChatSection activities={strava.activities} athlete={strava.athlete} hevyWorkouts={hevyWorkouts} hevyKey={hevyKey} pendingCheckin={pendingCheckin} onPendingCheckinConsumed={() => setPendingCheckin(null)} />}
       </main>
 
       <nav className="bottom-nav">
