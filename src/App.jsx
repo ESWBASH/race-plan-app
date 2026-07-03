@@ -1185,16 +1185,16 @@ function SeasonSection({ activities = [], stravaConnected = false }) {
     if (suggestions.length <= 1) setClassifyState('done')
   }
 
-  // Calendar year 2026
-  const yearStart = new Date('2026-01-01')
-  const yearEnd   = new Date('2026-12-31')
+  // Race season: Jul 2026 → Jul 2027 (covers all 6 races)
+  const yearStart = new Date('2026-07-01')
+  const yearEnd   = new Date('2027-07-01')
 
-  // Standard quarters
+  // Season quarters
   const QUARTERS = [
-    { id: 'q1', label: 'Q1 — Winter/Spring', emoji: '❄️',  start: '2026-01-01', end: '2026-03-31', color: 'var(--blue)' },
-    { id: 'q2', label: 'Q2 — Spring/Summer', emoji: '🌿',  start: '2026-04-01', end: '2026-06-30', color: 'var(--green)' },
-    { id: 'q3', label: 'Q3 — Summer/Autumn', emoji: '☀️',  start: '2026-07-01', end: '2026-09-30', color: 'var(--orange)' },
-    { id: 'q4', label: 'Q4 — Autumn/Winter', emoji: '🍂',  start: '2026-10-01', end: '2026-12-31', color: '#e67e22' },
+    { id: 'q3-2026', label: 'Summer / Autumn 2026', emoji: '☀️',  start: '2026-07-01', end: '2026-09-30', color: 'var(--orange)' },
+    { id: 'q4-2026', label: 'Autumn / Winter 2026', emoji: '🍂',  start: '2026-10-01', end: '2026-12-31', color: '#e67e22' },
+    { id: 'q1-2027', label: 'Winter / Spring 2027', emoji: '❄️',  start: '2027-01-01', end: '2027-03-31', color: 'var(--blue)' },
+    { id: 'q2-2027', label: 'Spring / Summer 2027', emoji: '🌿',  start: '2027-04-01', end: '2027-07-01', color: 'var(--green)' },
   ]
 
   const RUN_TYPES = ['Run', 'TrailRun', 'VirtualRun', 'Hike']
@@ -1253,11 +1253,11 @@ function SeasonSection({ activities = [], stravaConnected = false }) {
   }))
 
   const sorted = [...RACES].sort((a, b) => new Date(a.date) - new Date(b.date))
-  // Filter RACES to 2026 only for the year view
-  const yearRaces = sorted.filter(r => new Date(r.date).getFullYear() === 2026)
+  // All races across the full 2026-2027 season
+  const yearRaces = sorted.filter(r => new Date(r.date) >= yearStart && new Date(r.date) <= yearEnd)
   const totalPlannedMiles = yearRaces.reduce((s, r) => s + r.distanceMi, 0)
   const racesDone = yearRaces.filter(r => new Date(r.date) < today).length
-  const totalStravaYearMiles = Math.round(qMiles('2026-01-01', '2026-12-31'))
+  const totalStravaYearMiles = Math.round(qMiles('2026-07-01', '2027-07-01'))
 
   // Year progress bar
   const yearProgress = Math.min(100, Math.max(0,
@@ -1348,9 +1348,9 @@ function SeasonSection({ activities = [], stravaConnected = false }) {
       <div className="grid-4" style={{ marginBottom: 20 }}>
         {[
           { label: 'Races done', value: `${racesDone}/${yearRaces.length}`, sub: `${yearRaces.length - racesDone} ahead` },
-          { label: 'Race Miles', value: totalPlannedMiles, sub: 'planned 2026' },
-          { label: 'Training Miles', value: stravaConnected ? `${totalStravaYearMiles}` : '—', sub: stravaConnected ? '2026 total' : 'connect Strava' },
-          { label: 'Race Vert', value: `${(yearRaces.reduce((s,r)=>s+(r.elevationFt||0),0)/1000).toFixed(0)}k ft`, sub: 'planned total' },
+          { label: 'Race Miles', value: totalPlannedMiles, sub: 'planned season' },
+          { label: 'Training Miles', value: stravaConnected ? `${totalStravaYearMiles}` : '—', sub: stravaConnected ? 'Jul 26–Jul 27' : 'connect Strava' },
+          { label: 'Race Vert', value: `${(yearRaces.reduce((s,r)=>s+(r.elevationFt||0),0)/1000).toFixed(0)}k ft`, sub: 'planned season' },
         ].map((s, i) => (
           <div key={i} className="stat-card">
             <div className="stat-value" style={{ color: 'var(--text)' }}>{s.value}</div>
@@ -1362,7 +1362,7 @@ function SeasonSection({ activities = [], stravaConnected = false }) {
 
       {/* Year timeline bar */}
       <div className="card" style={{ marginBottom: 20 }}>
-        <div className="card-title">Year Timeline</div>
+        <div className="card-title">Season Timeline — Jul 2026 → Jun 2027</div>
         <div className="season-timeline">
           <div className="season-track">
             <div className="season-progress" style={{ width: `${yearProgress}%` }} />
