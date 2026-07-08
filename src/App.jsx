@@ -3827,20 +3827,301 @@ function TrainTab({ activities, hevyWorkouts, hevyKey, setHevyKey, hevyLoading }
 }
 
 const TABS = [
+  { id: 'today',  label: 'Today' },
   { id: 'brief',  label: 'Home' },
   { id: 'races',  label: 'Races' },
   { id: 'train',  label: 'Train' },
   { id: 'coach',  label: 'Coach' },
 ]
 
-const TAB_ICONS = { brief: '🏠', races: '🏔', train: '📅', coach: '💬' }
+const TAB_ICONS = { today: '🎯', brief: '🏠', races: '🏔', train: '📅', coach: '💬' }
 
 function getHevyKey() { try { return localStorage.getItem('cc_hevy_key') || '' } catch { return '' } }
 
 function getTheme() { try { return localStorage.getItem('cc_theme') || 'dark' } catch { return 'dark' } }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// TODAY MODE — the one-screen daily decision view
+// "Given your goal, life, body, head and yesterday — what's the smartest thing today?"
+// Decision support, not data. Never punishes a miss. Always offers a minimum version.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function todayStr(d = new Date()) {
+  const x = new Date(d)
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
+}
+
+// Per-session-type coaching guidance. The card is built from a real planned session,
+// never invented fresh — the "why" stays honest.
+const SESSION_GUIDE = {
+  easy: {
+    icon: '🟢', label: 'Easy run',
+    how: 'Conversational — you should be able to talk in full sentences. Zone 2, nose-breathing pace.',
+    why: 'Keep the habit and build the aerobic base. This is where ultra fitness is actually built — quietly, at easy pace.',
+    min: '20-minute jog/walk. Even 10 minutes out the door counts as a win.',
+    doNot: 'Do NOT turn this into a race because you feel behind. Easy means easy.',
+  },
+  long: {
+    icon: '🏔', label: 'Long run',
+    how: 'Steady, all-day pace. Walk the climbs from the start. Time on feet matters more than speed.',
+    why: 'Long, slow time on feet is the biggest predictor of finishing an ultra. Durability, not pace.',
+    min: 'Half the planned distance, run/walk. Or 90 minutes easy on any terrain.',
+    doNot: 'Do NOT chase pace, and do NOT skip fuel — eat every 30–40 min even if you\'re not hungry.',
+  },
+  interval: {
+    icon: '⚡', label: 'Quality session',
+    how: 'Hard efforts with full recoveries. Warm up properly first — never cold into hard.',
+    why: 'A small dose of sharpening keeps the legs responsive. Little and precise beats lots and sloppy.',
+    min: 'Halve the reps, or do 6×20-sec strides instead. Something beats nothing.',
+    doNot: 'Do NOT do this on poor sleep or a niggle — swap to easy instead. No hero points here.',
+  },
+  trail: {
+    icon: '⛰', label: 'Trail run',
+    how: 'Effort by feel on the terrain. Practise the skills: footing, poles, climbing, descending.',
+    why: 'Race-specific terrain time. This is where race craft — the stuff that saves hours — gets built.',
+    min: 'Shorter loop, or hike the same terrain. The skills still count even at walking pace.',
+    doNot: 'Do NOT force pace on technical ground — protect your ankles and your confidence.',
+  },
+  taper: {
+    icon: '🪶', label: 'Taper session',
+    how: 'Short and sharp, feeling fresh. Less is more from here.',
+    why: 'Sharpen, don\'t build. The work is already banked — freshness is the only goal now.',
+    min: 'Half of it. Rest is the priority during taper.',
+    doNot: 'Do NOT add mileage because you feel guilty. Taper guilt has ruined more races than taper itself.',
+  },
+  strength: {
+    icon: '🏋️', label: 'Strength & conditioning',
+    how: 'Controlled, quality reps. Form over load. This is a real session, not an add-on.',
+    why: 'Hill strength and injury resistance — the work that keeps you on the trail instead of on the sofa.',
+    min: '10 minutes: core plus single-leg work. One circuit counts.',
+    doNot: 'Do NOT skip it because it\'s boring. This is the session that prevents the injury.',
+  },
+  rest: {
+    icon: '😴', label: 'Rest day',
+    how: 'Rest IS the session today. Gentle mobility only if you fancy it.',
+    why: 'Adaptation happens on rest days, not runs. Resting on purpose is training.',
+    min: 'Nothing. Genuinely nothing. Maybe five minutes of stretching.',
+    doNot: 'Do NOT sneak in a "just easy" run. Trust the rest — it\'s doing the work.',
+  },
+}
+const DEFAULT_GUIDE = {
+  icon: '👟', label: 'Session',
+  how: 'Run to how it feels today. If in doubt, keep it easy.',
+  why: 'Keep the habit ticking over and the routine intact.',
+  min: '20 minutes of easy movement. Out the door is the hard part.',
+  doNot: 'Do NOT overcook it just because you feel behind.',
+}
+function guideFor(type) { return SESSION_GUIDE[type] || DEFAULT_GUIDE }
+
+// Daily log — the cheap two-tap capture that feeds the four buckets.
+function getDailyLogs() { try { return JSON.parse(localStorage.getItem('cc_daily_log_v1') || '{}') } catch { return {} } }
+function getDailyLog(date) { return getDailyLogs()[date] || null }
+function saveDailyLog(date, entry) {
+  const all = getDailyLogs()
+  all[date] = { ...(all[date] || {}), ...entry, date }
+  try { localStorage.setItem('cc_daily_log_v1', JSON.stringify(all)) } catch {}
+  return all[date]
+}
+
+function nextRace(fromStr) {
+  const upcoming = RACES
+    .filter(r => r.date >= fromStr)
+    .sort((a, b) => a.date.localeCompare(b.date))
+  return upcoming[0] || null
+}
+function daysBetween(aStr, bStr) {
+  const a = new Date(aStr + 'T00:00:00'), b = new Date(bStr + 'T00:00:00')
+  return Math.round((b - a) / 86400000)
+}
+const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+function TodayMode({ onNavigate }) {
+  const today = todayStr()
+  const [workouts] = useState(getWorkouts)
+  const [log, setLog] = useState(() => getDailyLog(today))
+  const [easier, setEasier] = useState(false)     // "make this easier" → foreground the minimum version
+  const [buzzing, setBuzzing] = useState(false)    // "I'm buzzing" guardrail
+  const [showWhy, setShowWhy] = useState(false)
+  const [peek, setPeek] = useState(false)
+  const [logging, setLogging] = useState(false)
+
+  const plan = workouts.find(w => w.date === today && guideFor(w.type))
+  const isRest = !plan || plan.type === 'rest'
+  const guide = plan ? guideFor(plan.type) : SESSION_GUIDE.rest
+  const race = nextRace(today)
+  const daysToRace = race ? daysBetween(today, race.date) : null
+
+  // Was yesterday missed? Gentle, non-punishing acknowledgement only.
+  const yStr = todayStr(new Date(Date.now() - 86400000))
+  const yPlan = workouts.find(w => w.date === yStr && w.type !== 'rest' && guideFor(w.type))
+  const yLog = getDailyLog(yStr)
+  const missedYesterday = yPlan && (!yLog || !yLog.done)
+
+  const week = []
+  for (let i = 0; i < 7; i++) {
+    const ds = todayStr(new Date(Date.now() + i * 86400000))
+    const w = workouts.find(x => x.date === ds)
+    week.push({ ds, w, dow: WEEKDAY[new Date(ds + 'T00:00:00').getDay()] })
+  }
+
+  function markDone(extra = {}) {
+    setLog(saveDailyLog(today, { done: true, didMinVersion: easier || extra.min || false, ...extra }))
+    setLogging(true)
+  }
+  function saveScale(key, val) { setLog(saveDailyLog(today, { [key]: val })) }
+
+  return (
+    <div className="today">
+      {/* Header: goal context, never a wall of charts */}
+      <div className="today-head">
+        <div className="today-date">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+        {race && (
+          <div className="today-race">
+            <span className="today-race-name">{race.shortName || race.name}</span>
+            <span className="today-race-days">{daysToRace === 0 ? 'Race day' : `${daysToRace} day${daysToRace === 1 ? '' : 's'} to go`}</span>
+          </div>
+        )}
+      </div>
+
+      {missedYesterday && (
+        <div className="today-missed">
+          Yesterday didn’t happen — that’s completely fine. One session is noise, not a pattern. Today is a clean slate. 💚
+        </div>
+      )}
+
+      {/* THE JOB — one decision, dominant */}
+      <div className={`today-card ${isRest ? 'is-rest' : ''}`}>
+        <div className="today-job-label">{isRest ? 'Today’s job' : 'Today’s job'}</div>
+        <div className="today-job">
+          <span className="today-job-icon">{guide.icon}</span>
+          <span className="today-job-text">
+            {isRest ? 'Rest' : (plan.name || guide.label)}
+            {!isRest && plan.miles && <span className="today-job-dist"> · {plan.miles} mi</span>}
+          </span>
+        </div>
+
+        {!easier && plan?.notes && !isRest && (
+          <div className="today-notes">{plan.notes}</div>
+        )}
+
+        {/* Make-easier collapses everything down to the minimum version */}
+        {easier && (
+          <div className="today-easier">
+            <div className="today-easier-label">Made easier — this is plenty for today:</div>
+            <div className="today-easier-text">{guide.min}</div>
+          </div>
+        )}
+
+        {!isRest && (
+          <div className="today-actions">
+            {!log?.done && (
+              <button className="today-start" onClick={() => markDone()}>▶ Start now</button>
+            )}
+            {log?.done && (
+              <div className="today-done-badge">✓ Logged — nice work</div>
+            )}
+            {!log?.done && !easier && (
+              <button className="today-secondary" onClick={() => setEasier(true)}>Make this easier</button>
+            )}
+            {!log?.done && easier && (
+              <button className="today-secondary" onClick={() => setEasier(false)}>Show full session</button>
+            )}
+          </div>
+        )}
+
+        {isRest && !log?.done && (
+          <div className="today-actions">
+            <button className="today-start rest" onClick={() => markDone({ rest: true })}>Mark rest taken</button>
+          </div>
+        )}
+
+        {/* Quick facts — how hard / minimum / do-not. Progressive, not a wall. */}
+        <div className="today-meta">
+          {!isRest && <div className="today-meta-row"><span className="tm-k">How hard</span><span className="tm-v">{guide.how}</span></div>}
+          <div className="today-meta-row"><span className="tm-k">Minimum</span><span className="tm-v">{guide.min}</span></div>
+          <button className="today-why-toggle" onClick={() => setShowWhy(v => !v)}>{showWhy ? '− Why this?' : '+ Why this?'}</button>
+          {showWhy && (
+            <div className="today-why">
+              <div className="today-why-row"><span className="tm-k">Why</span><span className="tm-v">{guide.why}</span></div>
+              <div className="today-why-row"><span className="tm-k danger">Do NOT</span><span className="tm-v">{guide.doNot}</span></div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* "I'm buzzing" guardrail — protects against panic/overshoot, not just undertraining */}
+      {!buzzing && !log?.done && (
+        <button className="today-buzzing-trigger" onClick={() => setBuzzing(true)}>⚡ I’m buzzing and want to do more</button>
+      )}
+      {buzzing && (
+        <div className="today-buzzing">
+          <div className="today-buzzing-title">Feeling great? Bank it — don’t spend it.</div>
+          <div className="today-buzzing-body">
+            Feeling good is exactly when overtraining sneaks in. The best runners do the planned session and save the extra
+            for the day it’s written. Stick to today — you’ll thank yourself on the long run this weekend.
+          </div>
+          <button className="today-secondary" onClick={() => setBuzzing(false)}>Got it — sticking to the plan</button>
+        </div>
+      )}
+
+      {/* Afterwards — the two-tap log, only after the work is done */}
+      {log?.done && (
+        <div className="today-log">
+          <div className="today-log-title">How did it go? (tap — takes 5 seconds)</div>
+          <ScaleRow label="Energy" value={log.energy} onPick={v => saveScale('energy', v)} lowLabel="Drained" highLabel="Buzzing" />
+          <ScaleRow label="Mood" value={log.mood} onPick={v => saveScale('mood', v)} lowLabel="Low" highLabel="Great" />
+          <ScaleRow label="Body / niggles" value={log.body} onPick={v => saveScale('body', v)} lowLabel="Sore" highLabel="Fresh" />
+          {plan && (plan.type === 'long' || plan.type === 'trail') && (
+            <div className="today-fuel-row">
+              <span className="tm-k">Fuelled well?</span>
+              <div className="today-fuel-btns">
+                <button className={`fuel-btn ${log.fuelled === true ? 'on' : ''}`} onClick={() => saveScale('fuelled', true)}>Yes</button>
+                <button className={`fuel-btn ${log.fuelled === false ? 'on' : ''}`} onClick={() => saveScale('fuelled', false)}>Not really</button>
+              </div>
+            </div>
+          )}
+          <div className="today-log-note">Logged to your daily record — this is what the coach watches over time.</div>
+        </div>
+      )}
+
+      {/* Peek at the week — collapsed by default, so hiding it never feels like lost control */}
+      <button className="today-peek-toggle" onClick={() => setPeek(v => !v)}>{peek ? '− Hide the week' : '+ Peek at the week'}</button>
+      {peek && (
+        <div className="today-week">
+          {week.map(({ ds, w, dow }, i) => {
+            const g = w ? guideFor(w.type) : null
+            return (
+              <div key={ds} className={`today-week-row ${i === 0 ? 'is-today' : ''}`}>
+                <span className="tw-day">{i === 0 ? 'Today' : dow}</span>
+                <span className="tw-icon">{g ? g.icon : '·'}</span>
+                <span className="tw-name">{w ? (w.name || g.label) : 'Open'}{w && w.miles ? ` · ${w.miles} mi` : ''}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <button className="today-coach-link" onClick={() => onNavigate && onNavigate('coach')}>Ask the coach about today →</button>
+    </div>
+  )
+}
+
+function ScaleRow({ label, value, onPick, lowLabel, highLabel }) {
+  return (
+    <div className="scale-row">
+      <span className="scale-label">{label}</span>
+      <div className="scale-btns">
+        {[1, 2, 3, 4, 5].map(n => (
+          <button key={n} className={`scale-btn ${value === n ? 'on' : ''}`} onClick={() => onPick(n)}>{n}</button>
+        ))}
+      </div>
+      <span className="scale-ends">{lowLabel} → {highLabel}</span>
+    </div>
+  )
+}
+
 export default function App() {
-  const [tab, setTab] = useState('brief')
+  const [tab, setTab] = useState('today')
   const strava = useStrava()
   const [profile, setProfile] = useState(getProfile)
   const [hevyKey, setHevyKeyState] = useState(getHevyKey)
@@ -4006,6 +4287,7 @@ export default function App() {
       )}
 
       <main>
+        {tab === 'today' && <TodayMode onNavigate={t => setTab(t)} />}
         {tab === 'brief' && <BriefSection strava={strava} profile={profile}
           onCheckinSave={ci => { setPendingCheckin(ci); setTab('coach') }}
           onNavigate={t => setTab(t)} />}

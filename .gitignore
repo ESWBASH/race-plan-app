@@ -22,3 +22,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+dist/
+*.timestamp-*.mjs
+package-lock.json

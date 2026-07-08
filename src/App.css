@@ -2507,3 +2507,85 @@ main { padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14
   flex-shrink: 0;
   line-height: 1;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   TODAY MODE — one-screen daily decision view
+   ═══════════════════════════════════════════════════════════════════ */
+.today { max-width: 560px; margin: 0 auto; padding: 16px 16px 96px; }
+
+.today-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.today-date { font-size: 15px; font-weight: 700; color: var(--text); }
+.today-race { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
+.today-race-name { font-size: 12px; color: var(--muted); font-weight: 600; }
+.today-race-days { font-size: 12px; color: var(--mint); font-weight: 700; }
+
+.today-missed {
+  background: var(--mint-dim); border: 1px solid var(--mint-mid); color: var(--text);
+  border-radius: 12px; padding: 12px 14px; font-size: 13px; line-height: 1.5; margin-bottom: 14px;
+}
+
+/* The job card — dominant, one decision */
+.today-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 20px; }
+.today-card.is-rest { background: var(--card2); }
+.today-job-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-bottom: 8px; }
+.today-job { display: flex; align-items: center; gap: 12px; }
+.today-job-icon { font-size: 34px; line-height: 1; }
+.today-job-text { font-size: 26px; font-weight: 800; color: var(--text); line-height: 1.15; }
+.today-job-dist { color: var(--mint); font-weight: 700; }
+.today-notes { margin-top: 12px; font-size: 14px; line-height: 1.55; color: var(--text); opacity: 0.85; }
+
+.today-easier { margin-top: 14px; background: var(--mint-dim); border: 1px solid var(--mint-mid); border-radius: 12px; padding: 12px 14px; }
+.today-easier-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--mint); font-weight: 700; margin-bottom: 4px; }
+.today-easier-text { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.45; }
+
+.today-actions { display: flex; gap: 10px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+.today-start {
+  background: var(--mint); color: #04120e; border: none; border-radius: 12px;
+  font-size: 16px; font-weight: 800; padding: 14px 22px; cursor: pointer; flex: 1; min-width: 160px;
+}
+.today-start.rest { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+.today-start:active { transform: translateY(1px); }
+.today-secondary { background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 12px; font-size: 13px; font-weight: 600; padding: 12px 16px; cursor: pointer; }
+.today-done-badge { color: var(--mint); font-weight: 800; font-size: 15px; }
+
+.today-meta { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.today-meta-row, .today-why-row { display: grid; grid-template-columns: 88px 1fr; gap: 10px; align-items: start; }
+.tm-k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 700; padding-top: 2px; }
+.tm-k.danger { color: var(--red); }
+.tm-v { font-size: 13.5px; line-height: 1.5; color: var(--text); opacity: 0.9; }
+.today-why-toggle { align-self: flex-start; background: none; border: none; color: var(--mint); font-size: 12.5px; font-weight: 700; cursor: pointer; padding: 0; }
+.today-why { display: flex; flex-direction: column; gap: 10px; margin-top: 2px; }
+
+/* Buzzing guardrail */
+.today-buzzing-trigger { margin-top: 14px; width: 100%; background: var(--yellow-dim); border: 1px solid var(--yellow); color: var(--yellow); border-radius: 12px; padding: 12px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.today-buzzing { margin-top: 14px; background: var(--yellow-dim); border: 1px solid var(--yellow); border-radius: 14px; padding: 16px; }
+.today-buzzing-title { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+.today-buzzing-body { font-size: 13.5px; line-height: 1.55; color: var(--text); opacity: 0.88; margin-bottom: 12px; }
+
+/* Afterwards log */
+.today-log { margin-top: 16px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+.today-log-title { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 14px; }
+.scale-row { margin-bottom: 14px; }
+.scale-label { font-size: 12.5px; font-weight: 700; color: var(--text); }
+.scale-btns { display: flex; gap: 8px; margin: 7px 0 4px; }
+.scale-btn { flex: 1; background: var(--card2); border: 1px solid var(--border); color: var(--muted); border-radius: 10px; padding: 12px 0; font-size: 15px; font-weight: 700; cursor: pointer; }
+.scale-btn.on { background: var(--mint); color: #04120e; border-color: var(--mint); }
+.scale-ends { font-size: 10.5px; color: var(--muted); }
+.today-fuel-row { display: flex; align-items: center; justify-content: space-between; margin: 6px 0 4px; }
+.today-fuel-btns { display: flex; gap: 8px; }
+.fuel-btn { background: var(--card2); border: 1px solid var(--border); color: var(--muted); border-radius: 10px; padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.fuel-btn.on { background: var(--mint); color: #04120e; border-color: var(--mint); }
+.today-log-note { font-size: 11.5px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+
+/* Peek at the week */
+.today-peek-toggle { margin-top: 18px; width: 100%; background: transparent; border: 1px dashed var(--border); color: var(--muted); border-radius: 12px; padding: 12px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.today-week { margin-top: 10px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.today-week-row { display: grid; grid-template-columns: 52px 26px 1fr; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--border); }
+.today-week-row:last-child { border-bottom: none; }
+.today-week-row.is-today { background: var(--mint-dim); }
+.tw-day { font-size: 12px; font-weight: 700; color: var(--muted); }
+.today-week-row.is-today .tw-day { color: var(--mint); }
+.tw-icon { font-size: 16px; }
+.tw-name { font-size: 13px; color: var(--text); opacity: 0.9; }
+
+.today-coach-link { margin-top: 18px; width: 100%; background: transparent; border: none; color: var(--mint); font-size: 13.5px; font-weight: 700; cursor: pointer; padding: 8px; }
